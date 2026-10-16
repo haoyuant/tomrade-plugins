@@ -6,6 +6,7 @@ installed on its own, so a change reaches people without a new app release.
 | Package | Plugin | What it does |
 |---|---|---|
 | `packages/im-feishu` | `tomrade/feishu` | Feishu and Lark IM over the long connection |
+| `packages/dingtalk` | `tomrade/dingtalk` | DingTalk IM over Stream mode |
 
 ## Develop
 
