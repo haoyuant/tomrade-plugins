@@ -12,6 +12,7 @@
     "sdk": "^0.2.5"
   },
   "main": "dist/index.js",
+  "icon": "icon.svg",
   "permissions": {
     "network": [
       "api.telegram.org"

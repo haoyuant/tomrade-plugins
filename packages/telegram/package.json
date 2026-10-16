@@ -1,5 +1,6 @@
 {
-  "name": "@tomrade-plugins/im-telegram",
+  "name": "@tomrade-plugins/telegram",
+  "license": "Apache-2.0",
   "private": true,
   "type": "module",
   "description": "Telegram IM adapter over Bot API long polling",
@@ -7,7 +8,7 @@
     "build": "tomrade-plugin build",
     "dev": "tomrade-plugin dev",
     "test": "tomrade-plugin test",
-    "check": "tomrade-plugin check",
+    "check": "tomrade-plugin check --official",
     "pack": "tomrade-plugin pack",
     "typecheck": "tsc -p tsconfig.json"
   }
