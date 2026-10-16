@@ -1,0 +1,70 @@
+name: Release
+
+# A tag <name>@<version> releases packages/<name> at that version: checked
+# against STANDARDS.md, signed for its exact build, packed, and added to the
+# official catalog Tomrade reads (the "catalog" release). Running it by hand
+# for a released plugin publishes catalog/revoked.json without a new version.
+on:
+  push:
+    tags: ["*@*"]
+  workflow_dispatch:
+    inputs:
+      plugin:
+        description: Folder under packages/ whose released version to publish again with catalog/revoked.json
+        required: true
+
+# One catalog: releases take turns, so none overwrites another's version.
+concurrency:
+  group: catalog
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: plugins
+
+      - uses: ./plugins/.github/actions/setup
+        with:
+          token: ${{ secrets.TOMRADE_REPO_TOKEN }}
+
+      - name: Which plugin
+        id: which
+        working-directory: plugins
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT: ${{ inputs.plugin }}
+        run: |
+          if [ "$EVENT" = "push" ]; then name="${GITHUB_REF_NAME%@*}"; version="${GITHUB_REF_NAME#*@}"; else name="$INPUT"; version=""; fi
+          if [[ ! "$name" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then echo "::error::\"$name\" is not a plugin folder name"; exit 1; fi
+          dir="packages/$name"
+          if [ ! -f "$dir/tomrade-plugin.json" ]; then echo "::error::there is no plugin at $dir"; exit 1; fi
+          actual="$(node -p "require('./$dir/tomrade-plugin.json').version")"
+          if [ -n "$version" ] && [ "$version" != "$actual" ]; then echo "::error::the tag says $version but $dir/tomrade-plugin.json says $actual"; exit 1; fi
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+
+      - name: The catalog so far
+        run: |
+          mkdir -p previous
+          if ! gh release view catalog > /dev/null 2>&1; then
+            gh release create catalog --latest=false --title "Official plugin catalog" --notes "What Tomrade lists as its official plugins, with each signed package. The Release workflow writes it; nothing here is edited by hand."
+          fi
+          gh release download catalog --pattern catalog.json --dir previous || echo "no catalog yet; this starts it"
+
+      - name: Check, sign, pack, and add to the catalog
+        working-directory: plugins
+        env:
+          TOMRADE_SIGNING_KEY: ${{ secrets.TOMRADE_SIGNING_KEY }}
+          DIR: ${{ steps.which.outputs.dir }}
+        run: npx tomrade-plugin release "$DIR" --out ../out --commit "$GITHUB_SHA" --catalog ../previous/catalog.json --revoked catalog/revoked.json
+
+      - name: Publish
+        run: gh release upload catalog out/* --clobber

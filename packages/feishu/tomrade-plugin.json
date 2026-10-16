@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "title": "Feishu / Lark",
   "description": "Talk to a project's assistant from Feishu or Lark: direct chats, @mentions and topics in groups, card buttons, selects and forms for questions, and replies that stream into a card. Connects from this computer over Feishu's long connection.",
-  "license": "BUSL-1.1",
+  "license": "Apache-2.0",
   "author": {
     "name": "Tomrade"
   },
@@ -12,6 +12,7 @@
     "sdk": "^0.2.5"
   },
   "main": "dist/index.js",
+  "icon": "icon.svg",
   "permissions": {
     "network": [
       "feishu.cn",

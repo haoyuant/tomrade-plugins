@@ -24,7 +24,7 @@ importers:
         specifier: ^3.2.7
         version: 3.2.7(@types/node@26.6.5)
 
-  packages/im-feishu: {}
+  packages/feishu: {}
 
 packages:
 
