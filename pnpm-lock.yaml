@@ -26,6 +26,8 @@ importers:
 
   packages/im-feishu: {}
 
+  packages/wecom: {}
+
 packages:
 
   '@esbuild/aix-ppc64@0.28.2':

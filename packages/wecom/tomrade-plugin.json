@@ -1,0 +1,33 @@
+{
+  "id": "tomrade/wecom",
+  "version": "0.1.0",
+  "title": "WeCom (企业微信)",
+  "description": "Talk to a project's assistant from WeCom: direct chats and @mentions in groups with an intelligent bot, template-card buttons and choices for questions, and replies that stream into the chat. Connects from this computer over the bot's long connection; no public address or trusted IP is needed.",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Tomrade"
+  },
+  "repository": "https://github.com/haoyuant/tomrade-plugins",
+  "engines": {
+    "sdk": "^0.2.5"
+  },
+  "icon": "icon.svg",
+  "main": "dist/index.js",
+  "permissions": {
+    "network": [
+      "work.weixin.qq.com",
+      "myqcloud.com"
+    ],
+    "fs": "none",
+    "exec": false
+  },
+  "inject": [
+    "im"
+  ],
+  "optional": [],
+  "contributes": {
+    "imAdapters": [
+      "wecom"
+    ]
+  }
+}

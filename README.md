@@ -6,6 +6,7 @@ installed on its own, so a change reaches people without a new app release.
 | Package | Plugin | What it does |
 |---|---|---|
 | `packages/im-feishu` | `tomrade/feishu` | Feishu and Lark IM over the long connection |
+| `packages/wecom` | `tomrade/wecom` | WeCom (企业微信) intelligent bot over the long connection |
 
 ## Develop
 
