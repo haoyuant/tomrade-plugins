@@ -1,0 +1,6 @@
+node_modules/
+dist/
+*.tomrade-plugin
+*.tsbuildinfo
+.DS_Store
+*.log

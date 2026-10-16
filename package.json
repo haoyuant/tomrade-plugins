@@ -1,0 +1,19 @@
+{
+  "name": "tomrade-plugins",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.17.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "check": "pnpm -r check"
+  },
+  "devDependencies": {
+    "@tomradex/plugin-cli": "link:../tomrade-next/packages/plugin-cli",
+    "@tomradex/plugin-sdk": "link:../tomrade-next/packages/plugin-sdk",
+    "@types/node": "^26.2.0",
+    "typescript": "^6.0.0",
+    "vitest": "^3.2.7"
+  }
+}
