@@ -26,7 +26,11 @@ importers:
 
   packages/dingtalk: {}
 
-  packages/im-feishu: {}
+  packages/feishu: {}
+
+  packages/slack: {}
+
+  packages/telegram: {}
 
 packages:
 
