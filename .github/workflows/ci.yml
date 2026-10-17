@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: plugins
+
+      - uses: ./plugins/.github/actions/setup
+        with:
+          token: ${{ secrets.TOMRADE_REPO_TOKEN }}
+
+      - name: Typecheck
+        working-directory: plugins
+        run: pnpm typecheck
+
+      - name: Unit tests
+        working-directory: plugins
+        run: pnpm test
+
+      # STANDARDS.md: every plugin here must pass it before it can be released.
+      - name: Official standard
+        working-directory: plugins
+        run: pnpm check

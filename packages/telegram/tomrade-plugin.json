@@ -1,0 +1,32 @@
+{
+  "id": "tomrade/telegram",
+  "version": "0.1.0",
+  "title": "Telegram",
+  "description": "Talk to a project's assistant from Telegram: direct chats, @mentions, replies and commands in groups, forum topics, buttons for questions and choices, and replies that stream as drafts. Connects from this computer by polling the Bot API.",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Tomrade"
+  },
+  "repository": "https://github.com/haoyuant/tomrade-plugins",
+  "engines": {
+    "sdk": "^0.2.5"
+  },
+  "main": "dist/index.js",
+  "icon": "icon.svg",
+  "permissions": {
+    "network": [
+      "api.telegram.org"
+    ],
+    "fs": "none",
+    "exec": false
+  },
+  "inject": [
+    "im"
+  ],
+  "optional": [],
+  "contributes": {
+    "imAdapters": [
+      "telegram"
+    ]
+  }
+}

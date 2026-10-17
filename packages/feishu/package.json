@@ -1,0 +1,15 @@
+{
+  "name": "@tomrade-plugins/feishu",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "description": "Feishu and Lark IM adapter over the long connection",
+  "scripts": {
+    "build": "tomrade-plugin build",
+    "dev": "tomrade-plugin dev",
+    "test": "tomrade-plugin test",
+    "check": "tomrade-plugin check --official",
+    "pack": "tomrade-plugin pack",
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

@@ -1,0 +1,38 @@
+name: Set up
+description: Node, pnpm, and the plugin SDK and CLI built from Tomrade, next to this checkout as ../tomrade-next
+inputs:
+  token:
+    description: A token that can read haoyuant/tomrade
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        repository: haoyuant/tomrade
+        token: ${{ inputs.token }}
+        path: tomrade-next
+
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: 26
+
+    # As in Tomrade's own workflows: the pinned pnpm, installed through npm.
+    - name: Install pnpm
+      shell: bash
+      run: npm install -g "$(node -p 'require("./plugins/package.json").packageManager')"
+
+    # Only the CLI and what it needs: no Electron, no app.
+    - name: Build the plugin SDK and CLI
+      shell: bash
+      working-directory: tomrade-next
+      run: |
+        pnpm install --frozen-lockfile --filter "@tomradex/plugin-cli..."
+        pnpm exec tsc -b packages/plugin-cli
+
+    - name: Install
+      shell: bash
+      working-directory: plugins
+      run: |
+        pnpm install --frozen-lockfile
+        pnpm -r build

@@ -1,0 +1,33 @@
+{
+  "id": "tomrade/dingtalk",
+  "version": "0.1.0",
+  "title": "DingTalk",
+  "description": "Talk to a project's assistant from DingTalk: direct chats and @mentions in groups, AI cards that stream replies and carry buttons for questions, and files both ways. Connects from this computer over DingTalk's Stream mode.",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Tomrade"
+  },
+  "repository": "https://github.com/haoyuant/tomrade-plugins",
+  "engines": {
+    "sdk": "^0.2.5"
+  },
+  "main": "dist/index.js",
+  "icon": "icon.svg",
+  "permissions": {
+    "network": [
+      "dingtalk.com",
+      "aliyuncs.com"
+    ],
+    "fs": "none",
+    "exec": false
+  },
+  "inject": [
+    "im"
+  ],
+  "optional": [],
+  "contributes": {
+    "imAdapters": [
+      "dingtalk"
+    ]
+  }
+}
