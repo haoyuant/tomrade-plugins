@@ -1,0 +1,49 @@
+{
+  "id": "tomrade/pomodoro",
+  "version": "0.1.0",
+  "title": "Pomodoro",
+  "description": "A focus and break timer in the status bar, with a desktop widget that floats above other windows, a notification and a sound when each phase ends, and tools the assistant loads when you ask it to start, pause, skip or reset the timer.",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Tomrade"
+  },
+  "repository": "https://github.com/haoyuant/tomrade-plugins",
+  "engines": {
+    "sdk": "^0.2.6"
+  },
+  "main": "dist/index.js",
+  "icon": "icon.svg",
+  "permissions": {
+    "network": [],
+    "fs": "none",
+    "exec": false
+  },
+  "inject": [
+    "settings",
+    "contributions",
+    "tools",
+    "alerts"
+  ],
+  "optional": [
+    "surfaces"
+  ],
+  "contributes": {
+    "tools": [
+      "pomodoro_control",
+      "pomodoro_status"
+    ],
+    "commands": [
+      "pomodoro.desktop",
+      "pomodoro.reset",
+      "pomodoro.settings",
+      "pomodoro.skip",
+      "pomodoro.toggle"
+    ],
+    "statusItems": [
+      "pomodoro.status"
+    ],
+    "settings": [
+      "pomodoro"
+    ]
+  }
+}

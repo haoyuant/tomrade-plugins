@@ -1,0 +1,18 @@
+{
+  "name": "@tomrade-plugins/pomodoro",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "description": "Pomodoro focus and break timer in the status bar, with a desktop widget and alerts",
+  "scripts": {
+    "build": "tomrade-plugin build",
+    "dev": "tomrade-plugin dev",
+    "test": "tomrade-plugin test",
+    "check": "tomrade-plugin check --official",
+    "pack": "tomrade-plugin pack",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "zod": "4.4.3"
+  }
+}
