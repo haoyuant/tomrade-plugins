@@ -8,6 +8,7 @@ Browse and installs them from there.
 | Package | Plugin | What it does |
 |---|---|---|
 | `packages/feishu` | `tomrade/feishu` | Feishu and Lark IM over the long connection |
+| `packages/telegram` | `tomrade/telegram` | Telegram IM over Bot API long polling |
 
 Every plugin here meets [the official standard](STANDARDS.md). The standard
 also says how a version is released.
