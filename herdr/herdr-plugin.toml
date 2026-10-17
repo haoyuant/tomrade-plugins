@@ -1,0 +1,45 @@
+id = "tomrade.herdr"
+name = "Tomrade"
+version = "0.1.0"
+min_herdr_version = "0.9.0"
+description = "Tickets from the terminal: open a ticket in Tomrade from its key or link, claim the agent in a pane to a ticket, and be offered a claim on a new worktree."
+platforms = ["macos", "linux"]
+
+# Ctrl-click a ticket key (TOM-42) or a tomrade:// link: the ticket opens in Tomrade.
+[[actions]]
+id = "open-ticket"
+title = "Tomrade: open ticket"
+contexts = ["workspace"]
+command = ["sh", "scripts/open-ticket.sh"]
+
+# The agent in this pane takes a ticket: asked for the key, then told to claim it through the repository's tomrade MCP server.
+[[actions]]
+id = "claim-ticket"
+title = "Tomrade: claim this pane to a ticket"
+contexts = ["workspace"]
+command = ["sh", "scripts/claim-ticket.sh"]
+
+[[panes]]
+id = "ask"
+title = "Tomrade: claim a ticket"
+placement = "popup"
+width = "60%"
+height = 7
+command = ["sh", "scripts/ask-claim.sh"]
+
+# A worktree herdr made is a ticket waiting to be claimed.
+[[events]]
+on = "worktree.created"
+command = ["sh", "scripts/on-worktree.sh"]
+
+[[link_handlers]]
+id = "ticket-link"
+title = "Open in Tomrade"
+pattern = "^tomrade://item/"
+action = "open-ticket"
+
+[[link_handlers]]
+id = "ticket-key"
+title = "Open in Tomrade"
+pattern = "^[A-Z][A-Z0-9]{0,9}-[0-9]+$"
+action = "open-ticket"
