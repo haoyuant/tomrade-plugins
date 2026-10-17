@@ -17,6 +17,12 @@ Browse and installs them from there.
 Every plugin here meets [the official standard](STANDARDS.md). The standard
 also says how a version is released.
 
+`herdr/` is not a Tomrade plugin but a plugin for [herdr](https://herdr.dev),
+the terminal workspace manager coding agents run in: it opens and claims
+Tomrade tickets from the terminal. herdr's marketplace lists it from this
+repository's `herdr-plugin` topic; `herdr plugin install haoyuant/tomrade-plugins/herdr`
+installs it. The official standard and the release workflow do not apply to it.
+
 ## Develop
 
 The plugin SDK and CLI are not published yet; they come from a Tomrade
