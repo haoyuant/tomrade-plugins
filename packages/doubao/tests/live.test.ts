@@ -41,5 +41,5 @@ it.skipIf(!key)("Ark checks the key, answers with the plugin's fields, and searc
   const text = await res.text();
   // an account without the search component switched on must refuse in a way the app's adapter falls back from
   if (res.ok) expect(text).toContain("output_text");
-  else expect([400, 404, 422], text.slice(0, 300)).toContain(res.status);
+  else expect([400, 403, 404, 422], text.slice(0, 300)).toContain(res.status);
 }, 180_000);

@@ -71,3 +71,8 @@ export function shape(model: string, json: Record<string, unknown>): Record<stri
   if ("max_tokens" in json || "max_completion_tokens" in json || /^deepseek-v4-1-flash/i.test(model)) return json;
   return { ...json, max_tokens: ANSWER_TOKENS };
 }
+
+/** The same room on the Responses API, where most of a searching Seed model's requests go. */
+export function answer(json: Record<string, unknown>): Record<string, unknown> {
+  return "max_output_tokens" in json ? json : { ...json, max_output_tokens: ANSWER_TOKENS };
+}

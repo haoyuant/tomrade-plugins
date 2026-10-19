@@ -1,5 +1,5 @@
 import { definePlugin } from "@tomradex/plugin-sdk";
-import { MAINLAND, PRESETS, known, media, searches, shape, usable } from "./doubao.js";
+import { MAINLAND, PRESETS, answer, known, media, searches, shape, usable } from "./doubao.js";
 
 export default definePlugin({
   inject: ["models"],
@@ -25,7 +25,8 @@ export default definePlugin({
           inputModalities: profile.inputModalities,
           outputModalities: profile.outputModalities,
           ...(searches(profile.model) ? { webSearch: "responses" as const } : {}),
-          body: (json) => shape(profile.model, json)
+          body: (json) => shape(profile.model, json),
+          responses: (json) => answer(json)
         })
     });
   }

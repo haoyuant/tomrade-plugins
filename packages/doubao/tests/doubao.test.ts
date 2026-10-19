@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import type { CompatibleModelOptions, ModelChatRequest, ModelListing, ModelProviderSpec } from "@tomradex/plugin-sdk";
 import doubao from "../src/index.js";
-import { ANSWER_TOKENS, BYTEPLUS, MAINLAND, known, media, searches, shape, usable } from "../src/doubao.js";
+import { ANSWER_TOKENS, BYTEPLUS, MAINLAND, answer, known, media, searches, shape, usable } from "../src/doubao.js";
 
 const EUROPE = "https://ark.eu-west.bytepluses.com/api/v3";
 
@@ -74,6 +74,9 @@ it("gives a request without a limit room for a long answer, and passes the effor
   expect(shape("doubao-seed-2-1-pro-260915", { model: "m", reasoning_effort: "minimal" })).toEqual({ model: "m", reasoning_effort: "minimal", max_tokens: ANSWER_TOKENS });
   expect(shape("seed-2-0-pro-260328", { max_tokens: 1 })).toEqual({ max_tokens: 1 });
   expect(shape("glm-5-3-flash-260828", { max_completion_tokens: 2000 })).toEqual({ max_completion_tokens: 2000 });
+  // the Responses API, where a searching Seed model mostly goes, gets the same room
+  expect(answer({ model: "m", reasoning: { effort: "high" } })).toEqual({ model: "m", reasoning: { effort: "high" }, max_output_tokens: ANSWER_TOKENS });
+  expect(answer({ max_output_tokens: 100 })).toEqual({ max_output_tokens: 100 });
   // DeepSeek V4.1 Flash counts its reasoning in max_tokens and defaults to 128k
   expect(shape("deepseek-v4-1-flash-261017", { model: "m" })).toEqual({ model: "m" });
   const shaped = shape("doubao-seed-evolving", {});
