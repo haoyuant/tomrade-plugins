@@ -1,0 +1,34 @@
+{
+  "id": "tomrade/kimi-search",
+  "version": "0.1.0",
+  "title": "Kimi Search",
+  "description": "Lets the assistant search the web and read pages through Kimi's search API (Moonshot). Nothing to set up: it uses the API key of your Kimi model in Settings → Models. Any model can search with it.",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Tomrade"
+  },
+  "repository": "https://github.com/haoyuant/tomrade-plugins",
+  "engines": {
+    "sdk": "^0.2.9"
+  },
+  "main": "dist/index.js",
+  "icon": "icon.svg",
+  "permissions": {
+    "network": [
+      "api.moonshot.cn",
+      "api.moonshot.ai"
+    ],
+    "fs": "none",
+    "exec": false
+  },
+  "inject": [
+    "settings",
+    "webSearch"
+  ],
+  "optional": [],
+  "contributes": {
+    "webSearchProviders": [
+      "kimi_search"
+    ]
+  }
+}
