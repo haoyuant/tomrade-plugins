@@ -1,0 +1,33 @@
+{
+  "id": "tomrade/minimax",
+  "version": "0.1.0",
+  "title": "MiniMax",
+  "description": "MiniMax models, mainland China or international: paste a pay-as-you-go or M Plan API key in Settings → Assistant and the assistant runs on MiniMax M3.x, with its thinking kept out of the answer and MiniMax's own web search.",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Tomrade"
+  },
+  "repository": "https://github.com/haoyuant/tomrade-plugins",
+  "engines": {
+    "sdk": "^0.2.16"
+  },
+  "main": "dist/index.js",
+  "icon": "icon.svg",
+  "permissions": {
+    "network": [
+      "api.minimax.cn",
+      "api.minimax.io"
+    ],
+    "fs": "none",
+    "exec": false
+  },
+  "inject": [
+    "models"
+  ],
+  "optional": [],
+  "contributes": {
+    "modelProviders": [
+      "minimax"
+    ]
+  }
+}

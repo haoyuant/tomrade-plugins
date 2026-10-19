@@ -34,6 +34,8 @@ importers:
 
   packages/glm: {}
 
+  packages/minimax: {}
+
   packages/pomodoro:
     devDependencies:
       zod:
