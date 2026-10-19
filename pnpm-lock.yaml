@@ -32,6 +32,8 @@ importers:
 
   packages/discord: {}
 
+  packages/doubao: {}
+
   packages/feishu: {}
 
   packages/glm: {}
