@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "id": "tomrade/kimi-search",
+    "versions": "*",
+    "reason": "Built into Tomrade: Kimi web search now comes with your Kimi model, nothing to install."
+  },
+  {
+    "id": "tomrade/deepseek-search",
+    "versions": "*",
+    "reason": "Built into Tomrade: DeepSeek web search now comes with your DeepSeek model, nothing to install."
+  }
+]
