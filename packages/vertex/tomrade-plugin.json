@@ -1,0 +1,36 @@
+{
+  "id": "tomrade/vertex",
+  "version": "0.1.0",
+  "title": "Google Vertex AI",
+  "description": "Gemini and the open models Google serves on Vertex AI (gpt-oss, DeepSeek, Qwen, Llama…): Tomrade uses the credentials gcloud already holds, or a Vertex AI API key, and talks to Gemini through its own API, Google Search included.",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Tomrade"
+  },
+  "repository": "https://github.com/haoyuant/tomrade-plugins",
+  "engines": {
+    "sdk": "^0.2.16"
+  },
+  "main": "dist/index.js",
+  "icon": "icon.svg",
+  "permissions": {
+    "network": [
+      "googleapis.com"
+    ],
+    "fs": "any",
+    "exec": true,
+    "why": {
+      "fs": "Reads the Application Default Credentials file that `gcloud auth application-default login` wrote (or the one GOOGLE_APPLICATION_CREDENTIALS names), to sign in to Google with it. It reads no other file.",
+      "exec": "Runs the Google Cloud CLI (gcloud config get-value project, gcloud config config-helper) to use the project and credentials you already set up for it, so you need not paste a key. It runs nothing else."
+    }
+  },
+  "inject": [
+    "models"
+  ],
+  "optional": [],
+  "contributes": {
+    "modelProviders": [
+      "vertex"
+    ]
+  }
+}

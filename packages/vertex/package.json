@@ -1,0 +1,15 @@
+{
+  "name": "@tomrade-plugins/vertex",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "description": "Gemini and the open models on Google Vertex AI, with the gcloud credentials already on the machine or a Vertex AI API key",
+  "scripts": {
+    "build": "tomrade-plugin build",
+    "dev": "tomrade-plugin dev",
+    "test": "tomrade-plugin test",
+    "check": "tomrade-plugin check --official",
+    "pack": "tomrade-plugin pack",
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
