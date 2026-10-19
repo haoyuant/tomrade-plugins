@@ -1,0 +1,35 @@
+{
+  "id": "tomrade/bedrock",
+  "version": "0.1.0",
+  "title": "Amazon Bedrock",
+  "description": "Models on Amazon Bedrock, Claude, Nova and the open models included: Tomrade uses the credentials the AWS CLI already holds, or a Bedrock API key, and talks to Bedrock's Converse API in your region.",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Tomrade"
+  },
+  "repository": "https://github.com/haoyuant/tomrade-plugins",
+  "engines": {
+    "sdk": "^0.2.16"
+  },
+  "main": "dist/index.js",
+  "icon": "icon.svg",
+  "permissions": {
+    "network": [
+      "amazonaws.com"
+    ],
+    "fs": "none",
+    "exec": true,
+    "why": {
+      "exec": "Runs the AWS CLI (aws configure export-credentials, aws configure get region) to use the credentials and region you already set up for it, so you need not paste a key. It runs nothing else."
+    }
+  },
+  "inject": [
+    "models"
+  ],
+  "optional": [],
+  "contributes": {
+    "modelProviders": [
+      "bedrock"
+    ]
+  }
+}
