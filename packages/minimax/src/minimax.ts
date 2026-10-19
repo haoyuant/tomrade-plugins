@@ -73,3 +73,16 @@ export function shape(model: string, json: Record<string, unknown>): Record<stri
   if (typeof out.temperature === "number") out.temperature = Math.min(2, Math.max(0, out.temperature));
   return out;
 }
+
+/**
+ * The same on the Responses API, where most of a searching M3.x's requests go:
+ * the effort on M3.1-Flash's scale and on no other model, and `tool_choice`
+ * only as `auto`, the one MiniMax documents there.
+ */
+export function answer(model: string, json: Record<string, unknown>): Record<string, unknown> {
+  const { reasoning, tool_choice: choice, ...out } = json as { reasoning?: { effort?: string }; tool_choice?: unknown } & Record<string, unknown>;
+  const level = LEAST.has(String(reasoning?.effort)) ? "low" : String(reasoning?.effort);
+  if (TUNES.test(model) && SCALE.has(level)) out.reasoning = { ...reasoning, effort: level };
+  if (choice === "auto") out.tool_choice = choice;
+  return out;
+}

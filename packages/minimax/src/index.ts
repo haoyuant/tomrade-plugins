@@ -1,5 +1,5 @@
 import { definePlugin } from "@tomradex/plugin-sdk";
-import { MAINLAND, PRESETS, media, searches, shape, usable } from "./minimax.js";
+import { MAINLAND, PRESETS, answer, media, searches, shape, usable } from "./minimax.js";
 
 export default definePlugin({
   inject: ["models"],
@@ -21,7 +21,8 @@ export default definePlugin({
           outputModalities: profile.outputModalities,
           // a searching request goes to {base}/responses with the web_search tool; MiniMax refusing it lets the app search another way
           ...(searches(profile.model) ? { webSearch: "responses" as const } : {}),
-          body: (json) => shape(profile.model, json)
+          body: (json) => shape(profile.model, json),
+          responses: (json) => answer(profile.model, json)
         })
     });
   }

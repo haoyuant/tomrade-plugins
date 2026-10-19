@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import type { CompatibleModelOptions, ModelChatRequest, ModelProviderSpec } from "@tomradex/plugin-sdk";
 import minimax from "../src/index.js";
-import { INTERNATIONAL, MAINLAND, media, searches, shape, usable } from "../src/minimax.js";
+import { INTERNATIONAL, MAINLAND, answer, media, searches, shape, usable } from "../src/minimax.js";
 
 /** The provider as the plugin registers it, with `compatible` remembering what it was asked to build. */
 async function registered() {
@@ -63,6 +63,12 @@ it("shapes chat/completions as MiniMax takes it: thinking apart, effort on M3.1-
   // what MiniMax would refuse is never added, and the rest goes as the adapter sent it
   const tools = { tools: [{ type: "function", function: { name: "f", parameters: {} } }], tool_choice: "auto", response_format: { type: "json_object" } };
   expect(shape("MiniMax-M3.1-Flash", { ...tools, stream: true })).toEqual({ ...tools, stream: true, reasoning_split: true });
+});
+
+it("shapes the Responses body too: effort on M3.1-Flash's scale only, tool_choice only as auto", () => {
+  expect(answer("MiniMax-M3.1-Flash", { model: "MiniMax-M3.1-Flash", reasoning: { effort: "minimal" }, tool_choice: "auto" })).toEqual({ model: "MiniMax-M3.1-Flash", reasoning: { effort: "low" }, tool_choice: "auto" });
+  expect(answer("MiniMax-M3.1-Flash", { reasoning: { effort: "high" }, tool_choice: { type: "function", name: "add" } })).toEqual({ reasoning: { effort: "high" } });
+  expect(answer("MiniMax-M3", { reasoning: { effort: "high" }, stream: true })).toEqual({ stream: true });
 });
 
 it("knows which models search, which read pictures, and which of a listing are usable chat models", () => {
