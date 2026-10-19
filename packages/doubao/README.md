@@ -1,0 +1,14 @@
+# Doubao
+
+Doubao Seed and the other models on Volcengine Ark (火山方舟) and BytePlus ModelArk as a model provider in Tomrade.
+
+- **Set up.** In Settings → Assistant (or the first-run setup), pick **豆包 Doubao** for a mainland China account on Volcengine Ark or **BytePlus ModelArk** for an international one, paste the API key and connect. Tomrade checks the key and starts on `doubao-seed-2-1-pro-260915` (BytePlus: `dola-seed-2-1-turbo-260628`). A key exported as `ARK_API_KEY` in your shell is offered without pasting. A key works only in the region it was made in.
+- **Switch the models on first.** Ark calls a model by its id only once your account has switched it on: [开通管理](https://ark.volcengine.com/region:cn-beijing/openManagement) in the Ark console, or [Model activation](https://ai.byteplus.com/ark/region:ap-southeast-1/openManagement) on BytePlus. Until then a request is refused with Ark's `ModelNotOpen` ("has not activated the model … Please activate the model service in the Ark Console").
+- **Addresses.** The presets are `https://ark.cn-beijing.volces.com/api/v3` and `https://ark.ap-southeast.bytepluses.com/api/v3`. For BytePlus in Europe put `https://ark.eu-west.bytepluses.com/api/v3` in the profile's address. The Ark Coding Plan address (`/api/coding/v3`) is not offered.
+- **Models.** Ark documents no model listing, so unless the address lists its models the profile's model picker offers the chat models the region serves: Doubao Seed 2.1 Pro, Lite and Turbo, Seed Evolving, GLM-5.3 Flash and DeepSeek V4.1 Flash and V4 Pro on Volcengine Ark; Dola Seed 2.1 Turbo and Seed 2.0 Pro, Lite, Mini and Code on BytePlus. Seed 2.x, GLM-5.3 Flash and DeepSeek V4.1 Flash read pictures, video and PDFs.
+- **Web search.** The doubao-seed models search the web themselves on Ark's Responses API (`web_search`) when the assistant needs it, so no search service is needed for them. Switch the web search component on in the Ark console ([应用组件](https://ark.volcengine.com/region:cn-beijing/openManagement?advancedActiveKey=component&tab=DoubaoSearch)) first. BytePlus documents no search.
+- **Reasoning and limits.** The assistant's effort goes to Ark as it is (`reasoning_effort`); Ark maps every value onto the model's own levels. Ark's `max_tokens` counts only the answer and defaults to 4096, so a request that names no limit gets room for 32768 tokens of answer, on chat/completions and on the Responses API alike. DeepSeek V4.1 Flash counts its reasoning there too and keeps its own default of 128k.
+
+The plugin talks to Ark through Tomrade's own OpenAI-compatible adapter; it reaches `volces.com` and `bytepluses.com` only.
+
+`tests/` runs the provider against a fake host, and `tests/live.test.ts` checks Ark's own fields against the real Ark with `ARK_API_KEY=… pnpm test packages/doubao` (`ARK_BASE_URL` for BytePlus, `ARK_MODEL` for another switched-on model). `src/test.ts` runs the provider in Tomrade's sandbox against a stand-in for Ark.

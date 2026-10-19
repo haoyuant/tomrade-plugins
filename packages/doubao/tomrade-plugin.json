@@ -1,0 +1,33 @@
+{
+  "id": "tomrade/doubao",
+  "version": "0.1.0",
+  "title": "Doubao",
+  "description": "Doubao and the other models on Volcengine Ark (火山方舟), mainland China, or on BytePlus ModelArk, international: paste an Ark API key in Settings → Assistant and the assistant runs on Doubao Seed, which searches the web itself on Volcengine Ark.",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Tomrade"
+  },
+  "repository": "https://github.com/haoyuant/tomrade-plugins",
+  "engines": {
+    "sdk": "^0.2.16"
+  },
+  "main": "dist/index.js",
+  "icon": "icon.svg",
+  "permissions": {
+    "network": [
+      "volces.com",
+      "bytepluses.com"
+    ],
+    "fs": "none",
+    "exec": false
+  },
+  "inject": [
+    "models"
+  ],
+  "optional": [],
+  "contributes": {
+    "modelProviders": [
+      "doubao"
+    ]
+  }
+}
