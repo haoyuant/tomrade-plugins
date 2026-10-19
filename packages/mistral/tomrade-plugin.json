@@ -1,0 +1,32 @@
+{
+  "id": "tomrade/mistral",
+  "version": "0.1.0",
+  "title": "Mistral",
+  "description": "Mistral AI's models from La Plateforme: paste a Mistral API key in Settings → Assistant and the assistant runs on Mistral Medium 3.5, or any chat model the key can use, thinking as hard as its effort asks on the models that reason.",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Tomrade"
+  },
+  "repository": "https://github.com/haoyuant/tomrade-plugins",
+  "engines": {
+    "sdk": "^0.2.16"
+  },
+  "main": "dist/index.js",
+  "icon": "icon.svg",
+  "permissions": {
+    "network": [
+      "api.mistral.ai"
+    ],
+    "fs": "none",
+    "exec": false
+  },
+  "inject": [
+    "models"
+  ],
+  "optional": [],
+  "contributes": {
+    "modelProviders": [
+      "mistral"
+    ]
+  }
+}
