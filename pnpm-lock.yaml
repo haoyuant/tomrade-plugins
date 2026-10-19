@@ -38,6 +38,8 @@ importers:
 
   packages/minimax: {}
 
+  packages/mistral: {}
+
   packages/pomodoro:
     devDependencies:
       zod:
