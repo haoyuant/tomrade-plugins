@@ -11,6 +11,7 @@ Browse and installs them from there.
 | `packages/telegram` | `tomrade/telegram` | Telegram IM over Bot API long polling |
 | `packages/slack` | `tomrade/slack` | Slack IM over Socket Mode |
 | `packages/dingtalk` | `tomrade/dingtalk` | DingTalk IM over Stream mode |
+| `packages/discord` | `tomrade/discord` | Discord IM over the Gateway |
 | `packages/wecom` | `tomrade/wecom` | WeCom (企业微信) intelligent bot over the long connection |
 | `packages/pomodoro` | `tomrade/pomodoro` | Focus and break timer in the status bar, with a desktop widget and alerts; installed once on every machine |
 

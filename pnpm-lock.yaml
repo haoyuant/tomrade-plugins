@@ -26,6 +26,8 @@ importers:
 
   packages/dingtalk: {}
 
+  packages/discord: {}
+
   packages/feishu: {}
 
   packages/pomodoro:
