@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Loads again in Tomrade 0.12.0: 0.1.1 used the SDK's new `wordsFor`, which only a newer Tomrade has. It still reads Simplified Chinese when the app does, and English in any other language.
+
 ## 0.1.1
 
 - Follows the app's language to the closest one it has words for, as Tomrade does, and reads English in any other language (Traditional Chinese, Japanese, a language pack…), where it used to show nothing.

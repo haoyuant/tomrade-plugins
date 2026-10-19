@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { definePlugin, defineTool, pickLanguage, wordsFor, type Locale, type SurfaceHandle } from '@tomradex/plugin-sdk';
+import { definePlugin, defineTool, type Locale, type SurfaceHandle } from '@tomradex/plugin-sdk';
 import { Timer } from './timer.js';
 
 // System sounds differ per machine, so the choice is built from what this one offers.
@@ -26,6 +26,10 @@ const words = {
     ended: { focus: 'Focus session done', shortBreak: 'Break is over', longBreak: 'Long break is over' }, next: { focus: 'Back to focus', shortBreak: 'Time for a short break', longBreak: 'Time for a long break' }, started: 'It has started.', ready: 'Start it when you are ready.' },
   zh: { title: '番茄钟', focus: '专注', shortBreak: '短休息', longBreak: '长休息', start: '开始', resume: '继续', pause: '暂停', paused: '已暂停', skip: '跳过', reset: '重置', desktop: '打开桌面浮窗', hide: '收起桌面浮窗', settings: '完整设置…', round: '第 {n}/{of} 轮',
     ended: { focus: '专注完成', shortBreak: '休息结束', longBreak: '长休息结束' }, next: { focus: '回到专注', shortBreak: '该短休息了', longBreak: '该长休息了' }, started: '已经开始计时。', ready: '准备好了就开始。' }
+};
+/** Whether a language tag reads in Simplified Chinese, the script the timer's zh words are in: zh-TW does not. */
+const simplifiedChinese = (tag: string) => {
+  try { const l = new Intl.Locale(tag).maximize(); return l.language === 'zh' && l.script === 'Hans'; } catch { return false; }
 };
 const WIDGET = { width: 240, height: 148 };
 const clock = (ms: number) => { const s = Math.ceil(ms / 1000); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
@@ -63,9 +67,10 @@ export default definePlugin({
     let stopped = false;
     let serial = Promise.resolve();
     let announced = 0;
-    // The app's language where the timer has words for it, English otherwise.
-    const label = () => wordsFor(locale, words);
-    const lang = () => pickLanguage(locale, Object.keys(words)) ?? 'en';
+    // The app's language where the timer has words for it, English otherwise. Picked here, not with the
+    // SDK's wordsFor: the SDK is the app's own copy, and a Tomrade before SDK 0.2.9 has no wordsFor.
+    const lang = (): keyof typeof words => (simplifiedChinese(locale) ? 'zh' : 'en');
+    const label = () => words[lang()];
     const round = (s: ReturnType<Timer['snapshot']>) => label().round.replace('{n}', String(s.round)).replace('{of}', String(config.longBreakEvery));
     const state = () => { const s = timer.snapshot(); return { ...s, round: round(s), words: label(), lang: lang(), config }; };
     const place = async (x: number, y: number) => {

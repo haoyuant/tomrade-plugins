@@ -1,6 +1,6 @@
 {
   "id": "tomrade/pomodoro",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "title": "Pomodoro",
   "description": "A focus and break timer in the status bar, with a desktop widget that floats above other windows, a notification and a sound when each phase ends, and tools the assistant loads when you ask it to start, pause, skip or reset the timer.",
   "license": "Apache-2.0",
