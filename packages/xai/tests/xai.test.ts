@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import type { CompatibleModelOptions, ModelChatRequest, ModelListing, ModelProviderSpec } from "@tomradex/plugin-sdk";
 import xai from "../src/index.js";
-import { API, media, searches, shape, usable } from "../src/xai.js";
+import { API, answer, media, searches, shape, usable } from "../src/xai.js";
 
 /** The provider as the plugin registers it, with `compatible` remembering what it was asked to build. */
 async function registered(fallback: ModelListing = { ok: true, models: ["grok-4.7"] }) {
@@ -102,6 +102,12 @@ it("shapes chat/completions: max_completion_tokens, and an effort the model take
   expect(shape("grok-4.3", { reasoning_effort: "medium" })).toEqual({ reasoning_effort: "medium" });
   expect(shape("grok-4.20-0309-non-reasoning", { reasoning_effort: "high", max_tokens: 5 })).toEqual({ max_completion_tokens: 5 });
   expect(shape("grok-4.7", { model: "grok-4.7", stream: true, tools: [] })).toEqual({ model: "grok-4.7", stream: true, tools: [] });
+});
+
+it("shapes the Responses body too: Grok's effort under reasoning, none for the non-reasoning models", () => {
+  expect(answer("grok-4.7", { model: "grok-4.7", reasoning: { effort: "minimal" }, max_output_tokens: 9 })).toEqual({ model: "grok-4.7", reasoning: { effort: "low" }, max_output_tokens: 9 });
+  expect(answer("grok-4.3", { reasoning: { effort: "high" } })).toEqual({ reasoning: { effort: "high" } });
+  expect(answer("grok-4.20-0309-non-reasoning", { reasoning: { effort: "low" }, store: false })).toEqual({ store: false });
 });
 
 it("knows which models search, which read pictures, and which of a listing are chat models", () => {

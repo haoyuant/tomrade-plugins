@@ -76,3 +76,10 @@ export function shape(model: string, json: Record<string, unknown>): Record<stri
   if (effort !== undefined && !/non-reasoning/i.test(model)) out.reasoning_effort = effort === "minimal" ? "low" : effort;
   return out;
 }
+
+/** The same on the Responses API, where most of a searching Grok's requests go: the effort under `reasoning`, on Grok's scale. */
+export function answer(model: string, json: Record<string, unknown>): Record<string, unknown> {
+  const { reasoning, ...out } = json as { reasoning?: { effort?: string } } & Record<string, unknown>;
+  if (reasoning?.effort && !/non-reasoning/i.test(model)) out.reasoning = { ...reasoning, effort: reasoning.effort === "minimal" ? "low" : reasoning.effort };
+  return out;
+}

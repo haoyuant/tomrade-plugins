@@ -1,5 +1,5 @@
 import { definePlugin } from "@tomradex/plugin-sdk";
-import { API, PRESETS, languageModels, media, searches, shape, usable } from "./xai.js";
+import { API, PRESETS, answer, languageModels, media, searches, shape, usable } from "./xai.js";
 
 export default definePlugin({
   inject: ["models"],
@@ -23,7 +23,8 @@ export default definePlugin({
           inputModalities: profile.inputModalities,
           outputModalities: profile.outputModalities,
           ...(searches(profile.model) ? { webSearch: "responses" as const } : {}),
-          body: (json) => shape(profile.model, json)
+          body: (json) => shape(profile.model, json),
+          responses: (json) => answer(profile.model, json)
         })
     });
   }
