@@ -1,7 +1,8 @@
 import { definePlugin } from "@tomradex/plugin-sdk";
 import { defaultProject, googleToken } from "./credentials.js";
-import { GeminiModel, keyedOpenModel } from "./model.js";
-import { address, authorize, base, listModels, media, open, projectOf, usable } from "./vertex.js";
+import { ClaudeModel } from "./claude-model.js";
+import { GeminiModel, keyedOnly } from "./model.js";
+import { address, authorize, base, claudeId, listModels, media, open, projectOf, usable } from "./vertex.js";
 
 /** Gemini 4 first, then the newest Gemini 3.x Flash and Pro. */
 const PREFER = [/^gemini-4(\.\d+)?-/, /^gemini-\d+(\.\d+)?-flash$/, /^gemini-\d+(\.\d+)?-pro(-preview)?$/];
@@ -41,10 +42,15 @@ export default definePlugin({
       capabilities: media,
       build: (profile) => {
         const baseURL = address(profile.baseURL, fallback);
+        const claude = claudeId(profile.model);
+        if (claude) {
+          if (profile.apiKey.trim()) return keyedOnly(profile.model, "Anthropic's model");
+          return new ClaudeModel({ baseURL, apiKey: "", token, model: claude, inputModalities: profile.inputModalities, provider: ctx.namespace });
+        }
         if (!open(profile.model)) {
           return new GeminiModel({ baseURL, apiKey: profile.apiKey, token, model: profile.model, inputModalities: profile.inputModalities, provider: ctx.namespace });
         }
-        if (profile.apiKey.trim()) return keyedOpenModel(profile.model);
+        if (profile.apiKey.trim()) return keyedOnly(profile.model, "an open model");
         // the open models answer on Vertex's OpenAI-compatible endpoint, the token asked for on every try
         return ctx.models.compatible({
           baseURL: `${baseURL}/endpoints/openapi`,
