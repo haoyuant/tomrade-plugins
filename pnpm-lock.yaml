@@ -32,6 +32,8 @@ importers:
 
   packages/feishu: {}
 
+  packages/glm: {}
+
   packages/pomodoro:
     devDependencies:
       zod:
