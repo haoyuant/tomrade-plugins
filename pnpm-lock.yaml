@@ -52,6 +52,8 @@ importers:
 
   packages/telegram: {}
 
+  packages/vertex: {}
+
   packages/wecom: {}
 
   packages/xai: {}
