@@ -14,6 +14,7 @@ Browse and installs them from there.
 | `packages/discord` | `tomrade/discord` | Discord IM over the Gateway |
 | `packages/wecom` | `tomrade/wecom` | WeCom (企业微信) intelligent bot over the long connection |
 | `packages/pomodoro` | `tomrade/pomodoro` | Focus and break timer in the status bar, with a desktop widget and alerts; installed once on every machine |
+| `packages/kimi-search` | `tomrade/kimi-search` | Web search and page reading for the assistant through Kimi's search API, with the key of your Kimi model; installed once on every machine |
 
 Every plugin here meets [the official standard](STANDARDS.md). The standard
 also says how a version is released.

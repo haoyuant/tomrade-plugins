@@ -30,6 +30,8 @@ importers:
 
   packages/feishu: {}
 
+  packages/kimi-search: {}
+
   packages/pomodoro:
     devDependencies:
       zod:
