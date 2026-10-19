@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { definePlugin, defineTool, type Locale, type SurfaceHandle } from '@tomradex/plugin-sdk';
+import { definePlugin, defineTool, pickLanguage, wordsFor, type Locale, type SurfaceHandle } from '@tomradex/plugin-sdk';
 import { Timer } from './timer.js';
 
 // System sounds differ per machine, so the choice is built from what this one offers.
@@ -63,9 +63,11 @@ export default definePlugin({
     let stopped = false;
     let serial = Promise.resolve();
     let announced = 0;
-    const label = () => words[locale];
+    // The app's language where the timer has words for it, English otherwise.
+    const label = () => wordsFor(locale, words);
+    const lang = () => pickLanguage(locale, Object.keys(words)) ?? 'en';
     const round = (s: ReturnType<Timer['snapshot']>) => label().round.replace('{n}', String(s.round)).replace('{of}', String(config.longBreakEvery));
-    const state = () => { const s = timer.snapshot(); return { ...s, round: round(s), words: label(), lang: locale, config }; };
+    const state = () => { const s = timer.snapshot(); return { ...s, round: round(s), words: label(), lang: lang(), config }; };
     const place = async (x: number, y: number) => {
       if (!desktop) return;
       const a = await desktop.workArea();
