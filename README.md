@@ -16,6 +16,7 @@ Browse and installs them from there.
 | `packages/qwen` | `tomrade/qwen` | Qwen models from Alibaba Cloud Model Studio as a model provider, with Qwen's own web search |
 | `packages/bedrock` | `tomrade/bedrock` | Models on Amazon Bedrock, Claude included, as a model provider, with the AWS CLI's credentials or a Bedrock API key |
 | `packages/xai` | `tomrade/xai` | Grok models from xAI as a model provider, searching the web with xAI's own search |
+| `packages/glm` | `tomrade/glm` | Zhipu GLM models (bigmodel.cn and Z.ai) as a model provider, with GLM's own web search |
 | `packages/pomodoro` | `tomrade/pomodoro` | Focus and break timer in the status bar, with a desktop widget and alerts; installed once on every machine |
 
 Every plugin here meets [the official standard](STANDARDS.md). The standard
