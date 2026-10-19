@@ -1,0 +1,35 @@
+{
+  "id": "tomrade/azure-openai",
+  "namespace": "azure",
+  "version": "0.1.0",
+  "title": "Azure OpenAI",
+  "description": "Azure OpenAI on your own Azure resource: put its endpoint and a key in Settings → Assistant and the assistant runs on your deployments, searching the web with Azure's own search.",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Tomrade"
+  },
+  "repository": "https://github.com/haoyuant/tomrade-plugins",
+  "engines": {
+    "sdk": "^0.2.16"
+  },
+  "main": "dist/index.js",
+  "icon": "icon.svg",
+  "permissions": {
+    "network": [
+      "openai.azure.com",
+      "services.ai.azure.com",
+      "cognitiveservices.azure.com"
+    ],
+    "fs": "none",
+    "exec": false
+  },
+  "inject": [
+    "models"
+  ],
+  "optional": [],
+  "contributes": {
+    "modelProviders": [
+      "azure-openai"
+    ]
+  }
+}

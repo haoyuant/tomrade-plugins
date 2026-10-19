@@ -18,6 +18,7 @@ Browse and installs them from there.
 | `packages/xai` | `tomrade/xai` | Grok models from xAI as a model provider, searching the web with xAI's own search |
 | `packages/glm` | `tomrade/glm` | Zhipu GLM models (bigmodel.cn and Z.ai) as a model provider, with GLM's own web search |
 | `packages/minimax` | `tomrade/minimax` | MiniMax models, mainland and international, as a model provider, with MiniMax's own web search |
+| `packages/azure-openai` | `tomrade/azure-openai` | Azure OpenAI deployments as a model provider, with Azure's own web search |
 | `packages/pomodoro` | `tomrade/pomodoro` | Focus and break timer in the status bar, with a desktop widget and alerts; installed once on every machine |
 
 Every plugin here meets [the official standard](STANDARDS.md). The standard
