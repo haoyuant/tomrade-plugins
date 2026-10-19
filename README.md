@@ -13,6 +13,7 @@ Browse and installs them from there.
 | `packages/dingtalk` | `tomrade/dingtalk` | DingTalk IM over Stream mode |
 | `packages/discord` | `tomrade/discord` | Discord IM over the Gateway |
 | `packages/wecom` | `tomrade/wecom` | WeCom (企业微信) intelligent bot over the long connection |
+| `packages/qwen` | `tomrade/qwen` | Qwen models from Alibaba Cloud Model Studio as a model provider, with Qwen's own web search |
 | `packages/pomodoro` | `tomrade/pomodoro` | Focus and break timer in the status bar, with a desktop widget and alerts; installed once on every machine |
 
 Every plugin here meets [the official standard](STANDARDS.md). The standard
