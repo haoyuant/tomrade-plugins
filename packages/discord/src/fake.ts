@@ -27,6 +27,10 @@ export class FakeDiscord {
   private ids = 1000;
   private fail: { match: (c: FakeCall) => boolean; status: number; retryAfter?: number; times: number }[] = [];
   readonly messages = new Map<string, { channel: string; body: Record<string, unknown> }>();
+  /** Channel types the REST answers with; a channel left out is a text channel. */
+  readonly channelTypes = new Map<string, number>();
+  /** Threads the bot opened or edited: their parent and last edit. */
+  readonly threads = new Map<string, { parent: string; body: Record<string, unknown> }>();
 
   /** The current connection, once identified or resumed. */
   get live() { return this.sockets.at(-1)?.socket.ready ? this.sockets.at(-1)!.socket : null; }
@@ -135,7 +139,18 @@ export class FakeDiscord {
       return json({ id: m[2], channel_id: m[1] });
     }
     if (method === "PATCH" && /^\/webhooks\/\d+\/[^/]+\/messages\/@original$/.test(path)) return json({ id: this.id() });
-    if (method === "GET" && (m = /^\/channels\/(\d+)$/.exec(path))) return json({ id: m[1], type: 0 });
+    if (method === "GET" && (m = /^\/channels\/(\d+)$/.exec(path))) return json({ id: m[1], type: this.channelTypes.get(m[1]!) ?? 0 });
+    if (method === "POST" && (m = /^\/channels\/(\d+)\/threads$/.exec(path))) {
+      const id = this.id();
+      const post = [15, 16].includes(this.channelTypes.get(m[1]!) ?? 0);
+      this.threads.set(id, { parent: m[1]!, body: body ?? {} });
+      return json({ id, parent_id: m[1], type: post ? 11 : (body?.type as number | undefined) ?? 11 });
+    }
+    if (method === "PATCH" && (m = /^\/channels\/(\d+)$/.exec(path))) {
+      const thread = this.threads.get(m[1]!);
+      if (thread) thread.body = { ...thread.body, ...body };
+      return json({ id: m[1], ...thread?.body });
+    }
     if (/^\/channels\/\d+\/typing$/.test(path) || /\/reactions\//.test(path) || /^\/interactions\//.test(path)) return new Response(null, { status: 204 });
     if (method === "PUT" && /^\/applications\/\d+\/commands$/.test(path)) return json(body);
     return json({ message: "404: Not Found" }, 404);

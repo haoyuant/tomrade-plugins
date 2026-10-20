@@ -204,3 +204,61 @@ describe("messages out", () => {
     expect(discord.where("POST", /\/typing$/)).toHaveLength(1);
   });
 });
+
+describe("ticket threads", () => {
+  const TITLE = "TOM-42 · Doing · Fix the login page";
+  const room = { tenantId: GUILD, conversationId: CHANNEL };
+
+  it("opens a public thread in a text channel, and messages in it arrive as its topic", async () => {
+    const { discord, session, events } = await connect();
+    const { topicId } = await session.topics!.open({ operationId: "t1", address: room, title: TITLE });
+    expect(discord.threads.get(topicId)).toEqual({ parent: CHANNEL, body: { name: TITLE, type: 11, auto_archive_duration: 10080 } });
+    discord.message({ channel: topicId, guild: GUILD, author: OWNER, content: "<@900> what is left?", mentions: true });
+    await until("the thread's message", () => of(events, "message").length === 1);
+    expect(of(events, "message")[0]).toMatchObject({ text: "what is left?", address: { ...room, topicId } });
+  });
+
+  it("opens a post in a forum or media channel and an announcement thread in an announcement channel", async () => {
+    const discord = new FakeDiscord();
+    discord.channelTypes.set("40", 15).set("41", 16).set("42", 5);
+    const { session } = await connect(discord);
+    for (const channel of ["40", "41"]) {
+      const { topicId } = await session.topics!.open({ operationId: `t${channel}`, address: { tenantId: GUILD, conversationId: channel }, title: TITLE });
+      expect(discord.threads.get(topicId)!.body).toEqual({ name: TITLE, auto_archive_duration: 10080, message: { content: TITLE, allowed_mentions: { parse: [] } } });
+    }
+    const { topicId } = await session.topics!.open({ operationId: "t42", address: { tenantId: GUILD, conversationId: "42" }, title: TITLE });
+    expect(discord.threads.get(topicId)!.body).toMatchObject({ type: 10 });
+  });
+
+  it("clips a long title to Discord's hundred characters", async () => {
+    const { discord, session } = await connect();
+    const { topicId } = await session.topics!.open({ operationId: "t1", address: room, title: `TOM-42 · Doing · ${"x".repeat(200)}` });
+    const name = discord.threads.get(topicId)!.body.name as string;
+    expect([...name]).toHaveLength(100);
+    expect(name.endsWith("…")).toBe(true);
+  });
+
+  it("renames the thread as its ticket moves, archives it once done, and opens it again", async () => {
+    const { discord, session } = await connect();
+    const { topicId } = await session.topics!.open({ operationId: "t1", address: room, title: TITLE });
+    const address = { ...room, topicId };
+    await session.topics!.update({ address, title: "TOM-42 · Verifying · Fix the login page", closed: false });
+    await session.topics!.update({ address, title: "TOM-42 · Done · Fix the login page", closed: true });
+    // The same name again is not a rename: Discord allows only a few.
+    await session.topics!.update({ address, title: "TOM-42 · Done · Fix the login page", closed: false });
+    expect(discord.where("PATCH", new RegExp(`^/channels/${topicId}$`)).map(c => c.body)).toEqual([
+      { name: "TOM-42 · Verifying · Fix the login page", archived: false },
+      { name: "TOM-42 · Done · Fix the login page", archived: true },
+      { archived: false }
+    ]);
+  });
+
+  it("reports Discord's refusals and rate limits as messages do, and opens no thread in a direct chat", async () => {
+    const { discord, session } = await connect();
+    discord.failNext(c => c.path.endsWith("/threads"), 403);
+    await expect(session.topics!.open({ operationId: "t1", address: room, title: TITLE })).rejects.toMatchObject({ disposition: "permanent" });
+    discord.failNext(c => c.path.endsWith("/threads"), 429, { retryAfter: 2 });
+    await expect(session.topics!.open({ operationId: "t2", address: room, title: TITLE })).rejects.toMatchObject({ disposition: "retryable", retryAfterMs: 2000 });
+    await expect(session.topics!.open({ operationId: "t3", address: { tenantId: "@me", conversationId: DM }, title: TITLE })).rejects.toBeInstanceOf(ImDeliveryError);
+  });
+});

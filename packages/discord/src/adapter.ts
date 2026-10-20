@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto";
 import { ImDeliveryError, type ImAdapter, type ImAdapterSession, type ImAddress, type ImCapabilities, type ImCommand, type ImContextMessage, type ImDelivery, type ImInbound } from "@tomradex/plugin-sdk";
 import { Gateway, net, type Net } from "./gateway.js";
-import { actorOf, addressOf, API, INTENTS, inboundMessage, isThread, MESSAGE_CONTENT, messageOf, parseControl, REACTIONS, wantsContent, type DInteraction, type DMessage, type DOption } from "./wire.js";
+import { actorOf, addressOf, API, INTENTS, inboundMessage, isThread, MESSAGE_CONTENT, messageOf, parseControl, REACTIONS, threadName, threadOf, wantsContent, type DInteraction, type DMessage, type DOption } from "./wire.js";
 
 export const CAPABILITIES: ImCapabilities = {
   edit: true, buttons: true, inboundFiles: true, outboundFiles: true,
   maxTextLength: 2000, maxFileBytes: 10 * 1024 * 1024,
-  // A reply quotes the message that asked; opening a thread per task is left to the person.
-  threads: false, reactions: true, typing: true, stream: "edit",
+  // A reply quotes the message that asked; the bot opens a thread per ticket being worked (`topics`).
+  threads: false, topics: true, reactions: true, typing: true, stream: "edit",
   select: true, multiSelect: true, textInput: true, cards: true, cardUpdate: true,
   nativeCommands: true, ephemeral: false, markdown: "discord",
   // About five messages or edits per channel every five seconds before Discord answers 429.
@@ -81,7 +81,9 @@ export async function openDiscord(connectionId: string, io: IO, opts: { net?: Ne
   const later = (work: () => Promise<unknown>) => { queue = queue.then(work).then(() => {}, () => {}); };
   const receive = (event: ImInbound) => io.receive(event).catch(() => {});
 
-  const learnChannel = (c: { id: string; type: number; parent_id?: string | null }) => { parents.set(c.id, isThread(c.type) ? c.parent_id ?? null : null); };
+  /** Channel → its type, for opening the right kind of thread in it. */
+  const kinds = new Map<string, number>();
+  const learnChannel = (c: { id: string; type: number; parent_id?: string | null }) => { parents.set(c.id, isThread(c.type) ? c.parent_id ?? null : null); kinds.set(c.id, c.type); };
   const parentOf = (id: string) => parents.get(id) ?? null;
   /** A thread's first message, read once per thread. */
   const roots = new Recent<ImContextMessage | null>(200);
@@ -199,6 +201,8 @@ export async function openDiscord(connectionId: string, io: IO, opts: { net?: Ne
 
   const channelOf = (address: ImAddress, threadId?: string) => threadId ?? address.topicId ?? address.conversationId;
   let reacted = new Recent<string>(500);
+  /** The name each thread was last given; Discord allows only a couple of renames per thread every ten minutes. */
+  const named = new Recent<string>(500);
 
   return {
     identity: { id: ready.user.id, name: ready.user.username },
@@ -239,6 +243,27 @@ export async function openDiscord(connectionId: string, io: IO, opts: { net?: Ne
       if (previous && previous !== REACTIONS[reaction]) await rest("DELETE", `/channels/${channel}/messages/${messageId}/reactions/${encodeURIComponent(previous)}/@me`).catch(() => null);
       await rest("PUT", `/channels/${channel}/messages/${messageId}/reactions/${encodeURIComponent(REACTIONS[reaction])}/@me`);
       reacted.set(messageId, REACTIONS[reaction]);
+    },
+
+    topics: {
+      async open({ address, title }) {
+        const channel = address.conversationId;
+        if (address.tenantId === "@me") throw new ImDeliveryError("Direct messages have no threads", "permanent");
+        if (!kinds.has(channel)) learnChannel(await rest("GET", `/channels/${channel}`) as { id: string; type: number; parent_id?: string | null });
+        const kind = kinds.get(channel) ?? 0;
+        const res = await rest("POST", `/channels/${channel}/threads`, threadOf(kind, title)) as { id: string; type?: number };
+        // Messages in it arrive as its topic before the gateway says it exists.
+        learnChannel({ id: res.id, type: res.type ?? 11, parent_id: channel });
+        named.set(res.id, threadName(title));
+        return { topicId: res.id };
+      },
+
+      async update({ address, title, closed }) {
+        const name = threadName(title);
+        // Reopening and renaming go in one edit; an archived thread takes no other change.
+        await rest("PATCH", `/channels/${address.topicId}`, { ...(named.get(address.topicId) !== name ? { name } : {}), archived: closed });
+        named.set(address.topicId, name);
+      }
     },
 
     async commands(list) {
