@@ -22,6 +22,7 @@ Browse and installs them from there.
 | `packages/azure-openai` | `tomrade/azure-openai` | Azure OpenAI deployments as a model provider, with Azure's own web search |
 | `packages/mistral` | `tomrade/mistral` | Mistral models as a model provider |
 | `packages/doubao` | `tomrade/doubao` | Doubao on Volcengine Ark and BytePlus ModelArk as a model provider, with Doubao's own web search |
+| `packages/hermes` | `tomrade/hermes` | Hermes Agent (Nous Research) as a local coding agent: conversations and tickets over ACP, a ticket in a terminal, its own sessions connected, its sign-in lent to the worker |
 | `packages/pomodoro` | `tomrade/pomodoro` | Focus and break timer in the status bar, with a desktop widget and alerts; installed once on every machine |
 
 Every plugin here meets [the official standard](STANDARDS.md). The standard
