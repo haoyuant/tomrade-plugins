@@ -6,6 +6,7 @@ export interface FakeCall { method: string; args: Record<string, string>; token:
 export interface FakeMessage {
   channel: string; ts: string; thread?: string; user?: string; botId?: string; text: string;
   blocks?: Record<string, unknown>[]; markdown?: string; streaming?: boolean; files?: string[];
+  metadata?: { event_type: string; event_payload: Record<string, unknown> };
 }
 
 type Listener = (event: { data?: unknown; code?: number; reason?: string }) => void;
@@ -186,7 +187,8 @@ export class FakeSlack {
       }
       case "chat.postMessage": {
         const m: FakeMessage = { channel: args.channel!, ts: this.ts(), ...(args.thread_ts ? { thread: args.thread_ts } : {}), user: this.bot.userId, botId: this.bot.botId, text: args.text ?? "",
-          ...(args.blocks ? { blocks: JSON.parse(args.blocks) as Record<string, unknown>[] } : {}) };
+          ...(args.blocks ? { blocks: JSON.parse(args.blocks) as Record<string, unknown>[] } : {}),
+          ...(args.metadata ? { metadata: JSON.parse(args.metadata) as FakeMessage["metadata"] } : {}) };
         this.messages.push(m);
         return json({ ok: true, channel: m.channel, ts: m.ts, message: { ts: m.ts, text: m.text } });
       }
@@ -197,6 +199,8 @@ export class FakeSlack {
         if (m.streaming) return json({ ok: false, error: "message_is_streaming" });
         m.text = args.text ?? m.text;
         if (args.blocks !== undefined) m.blocks = JSON.parse(args.blocks) as Record<string, unknown>[];
+        // As in Slack, an update without metadata keeps the message's own.
+        if (args.metadata !== undefined) m.metadata = JSON.parse(args.metadata) as FakeMessage["metadata"];
         return json({ ok: true, channel: m.channel, ts: m.ts, text: m.text });
       }
       case "chat.startStream": {
@@ -232,7 +236,10 @@ export class FakeSlack {
       case "conversations.replies": {
         if (this.noHistory) return json({ ok: false, error: "missing_scope" });
         const thread = this.messages.filter(m => m.channel === args.channel && (m.ts === args.ts || m.thread === args.ts));
-        return json({ ok: true, messages: thread.map(m => ({ type: "message", ts: m.ts, text: m.markdown ?? m.text, ...(m.thread ? { thread_ts: m.thread } : {}), ...(m.botId ? { bot_id: m.botId } : {}), ...(m.user ? { user: m.user } : {}) })), has_more: false });
+        // Slack returns a message's metadata only when asked for it.
+        const metadata = args.include_all_metadata === "true";
+        return json({ ok: true, messages: thread.map(m => ({ type: "message", ts: m.ts, text: m.markdown ?? m.text, ...(m.thread ? { thread_ts: m.thread } : {}), ...(m.botId ? { bot_id: m.botId } : {}), ...(m.user ? { user: m.user } : {}),
+          ...(metadata && m.metadata ? { metadata: m.metadata } : {}) })), has_more: false });
       }
       case "files.info": {
         const f = this.files.get(args.file ?? "");

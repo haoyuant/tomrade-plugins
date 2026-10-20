@@ -1,8 +1,8 @@
-import type { ImAdapter, ImAdapterSession, ImCapabilities, ImContent, ImContextMessage, ImDelivery, ImInbound } from "@tomradex/plugin-sdk";
+import { ImDeliveryError, type ImAdapter, type ImAdapterSession, type ImCapabilities, type ImContent, type ImContextMessage, type ImDelivery, type ImInbound } from "@tomradex/plugin-sdk";
 import { Api, net, SlackError, type Net } from "./api.js";
-import { controlOf, markdownOf, messageOf } from "./blocks.js";
+import { controlOf, escape, markdownOf, messageOf } from "./blocks.js";
 import { type Envelope, SocketMode } from "./gateway.js";
-import { addressOf, commandText, isDirect, mentions, messageId, REACTIONS, textOf, threadOf, tsOf, usersIn,
+import { addressOf, commandText, isDirect, mentions, messageId, REACTIONS, textOf, threadOf, TOPIC_EVENT, tsOf, usersIn,
   type SBlockActions, type SCommand, type SEventCallback, type SFile, type SMessage, type SStopped } from "./wire.js";
 
 export const CAPABILITIES: ImCapabilities = {
@@ -12,7 +12,8 @@ export const CAPABILITIES: ImCapabilities = {
   // Under the IM layer's own 32 MB, so a larger file is refused by name.
   maxFileBytes: 30 * 1024 * 1024,
   // A channel is one conversation and each answer goes into the asking message's thread; "thinking" is the assistant status.
-  threads: true, reactions: true, typing: true, stream: "native",
+  // A ticket being worked gets a thread of its own, under a message carrying its status (`topics`).
+  threads: true, topics: true, reactions: true, typing: true, stream: "native",
   select: true, multiSelect: true, textInput: true, cards: true, cardUpdate: true,
   // `/tomrade` lives in the app manifest; Slack takes no commands from a bot token at runtime.
   nativeCommands: false,
@@ -67,8 +68,10 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
   let namesAllowed = true;
   /** File URLs from the messages that carried them, so a download needs no lookup. */
   const files = new Recent<{ url: string; mimeType?: string }>(500);
-  /** Channel threads: whether the bot is in them, and their first message. */
-  const threads = new Recent<{ ours: boolean; root: ImContextMessage | null }>(500);
+  /** Channel threads: whether the bot is in them, their first message, and whether they are a ticket's topic. */
+  const threads = new Recent<{ ours: boolean; root: ImContextMessage | null; topic: boolean }>(500);
+  /** What each ticket thread's parent message says, so an update that changes nothing is not sent. */
+  const titles = new Recent<string>(500);
   /** Who last wrote in a thread, the person a stream in it is for. */
   const people = new Recent<string>(1000);
   /** The thread a person last wrote in, per direct message channel, which `/tomrade` there acts on. */
@@ -110,17 +113,25 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
     return textOf(text, botUserId, id => names.get(id) ?? undefined);
   };
 
-  /** A channel thread: whether the bot has written in it, and its first message. Needs the history scopes; without them it is unknown. */
+  const mine = (m: SMessage) => m.user === botUserId || (!!botId && m.bot_id === botId);
+
+  /**
+   * A channel thread: whether the bot has written in it, its first message,
+   * and whether that message is a ticket's parent (the bot's, with its
+   * metadata), so a ticket thread is known after a restart. Needs the history
+   * scopes; without them it is unknown.
+   */
   const thread = async (channel: string, root: string) => {
     const key = `${channel}:${root}`;
     const known = threads.get(key);
     if (known) return known;
-    const found: { ours: boolean; root: ImContextMessage | null } = { ours: false, root: null };
+    const found: { ours: boolean; root: ImContextMessage | null; topic: boolean } = { ours: false, root: null, topic: false };
     try {
-      const r = await api.call<{ messages?: SMessage[] }>("conversations.replies", { channel, ts: root, limit: 200 }, { repeatable: true });
+      const r = await api.call<{ messages?: SMessage[] }>("conversations.replies", { channel, ts: root, limit: 200, include_all_metadata: true }, { repeatable: true });
       const messages = r.messages ?? [];
-      found.ours = messages.some(m => m.user === botUserId || (!!botId && m.bot_id === botId));
+      found.ours = messages.some(mine);
       const first = messages[0];
+      found.topic = first?.ts === root && mine(first) && first.metadata?.event_type === TOPIC_EVENT;
       if (first?.ts === root && first.text?.trim()) {
         const isBot = !!first.bot_id;
         const author = first.user ?? first.bot_id ?? "";
@@ -134,10 +145,15 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
     threads.set(key, found);
     return found;
   };
-  const joined = (channel: string, root: string) => {
+  /** The bot wrote in a thread; `topic` is the delivery's, which names a ticket thread. */
+  const joined = (channel: string, root: string, topic: string | undefined) => {
     const key = `${channel}:${root}`;
-    threads.set(key, { root: threads.get(key)?.root ?? null, ours: true });
+    const known = threads.get(key);
+    threads.set(key, { root: known?.root ?? null, ours: true, topic: !!known?.topic || (!isDirect(channel) && topic === root) });
   };
+  /** Whether a channel message's thread is a ticket's topic. */
+  const ticketThread = async (channel: string, ts: string | undefined, root: string | undefined) =>
+    !isDirect(channel) && !!root && root !== ts && (await thread(channel, root)).topic;
 
   const attachmentsOf = async (list: SFile[]) => {
     const out: NonNullable<(ImInbound & { kind: "message" })["attachments"]> = [];
@@ -175,7 +191,7 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
     const name = await nameOf(user);
     await receive({
       kind: "message", eventId, messageId: messageId(ev.ts, ev.thread_ts), text, activation,
-      actor: { id: user, ...(name ? { name } : {}), isBot: false }, address: addressOf(team, channel, ev.ts, ev.thread_ts),
+      actor: { id: user, ...(name ? { name } : {}), isBot: false }, address: addressOf(team, channel, ev.ts, ev.thread_ts, !!info?.topic),
       ...(attachments.length ? { attachments } : {}),
       ...(info?.root && activation !== "ambient" ? { context: [info.root] } : {})
     });
@@ -188,7 +204,7 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
     // A changed message without `edited` is Slack updating it (a reply count, an unfurl), not the person.
     if (!m?.user || m.bot_id || m.user === botUserId || (!deleted && !m.edited)) return;
     await receive({ kind: deleted ? "retract" : "edit", eventId, messageId: messageId(m.ts, m.thread_ts),
-      actor: { id: m.user, isBot: false }, address: addressOf(team, ev.channel, m.ts, m.thread_ts) });
+      actor: { id: m.user, isBot: false }, address: addressOf(team, ev.channel, m.ts, m.thread_ts, await ticketThread(ev.channel, m.ts, m.thread_ts)) });
   };
 
   const onEvent = (cb: SEventCallback) => {
@@ -204,8 +220,9 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
       for (const ts of s.streaming_message_ts ?? []) { const open = streams.get(ts); if (open) open.native = false; }
       if (!s.user || !s.channel) return;
       const user = s.user, channel = s.channel;
-      later(() => receive({ kind: "message", eventId: cb.event_id, messageId: messageId(`stop:${s.event_ts ?? cb.event_id}`, s.thread_ts), text: "/stop",
-        activation: isDirect(channel) ? "dm" : "mention", actor: { id: user, isBot: false }, address: addressOf(team, channel, undefined, s.thread_ts) }));
+      later(async () => receive({ kind: "message", eventId: cb.event_id, messageId: messageId(`stop:${s.event_ts ?? cb.event_id}`, s.thread_ts), text: "/stop",
+        activation: isDirect(channel) ? "dm" : "mention", actor: { id: user, isBot: false },
+        address: addressOf(team, channel, undefined, s.thread_ts, await ticketThread(channel, undefined, s.thread_ts)) }));
     }
   };
 
@@ -217,10 +234,12 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
     if (!user || !channel || !action || !p.trigger_id) return;
     const control = controlOf(action, p.state?.values, token => choices.get(token));
     if (!control) return;
-    const thread = p.message?.thread_ts ?? p.container?.thread_ts;
     const ts = p.message?.ts ?? p.container?.message_ts;
-    later(() => receive({ kind: "action", eventId: `a:${p.trigger_id}`, token: control.token,
-      ...(control.value !== undefined ? { value: control.value } : {}), actor: { id: user, isBot: false }, address: addressOf(team, channel, undefined, thread !== ts ? thread : undefined) }));
+    const root = p.message?.thread_ts ?? p.container?.thread_ts;
+    const inThread = root !== ts ? root : undefined;
+    later(async () => receive({ kind: "action", eventId: `a:${p.trigger_id}`, token: control.token,
+      ...(control.value !== undefined ? { value: control.value } : {}), actor: { id: user, isBot: false },
+      address: addressOf(team, channel, undefined, inThread, await ticketThread(channel, ts, inThread)) }));
   };
 
   /**
@@ -273,7 +292,7 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
     const { text, blocks } = render(d.content);
     const r = await api.call<{ ts: string }>("chat.postMessage", { channel, text, ...(blocks.length ? { blocks } : {}), ...(root ? { thread_ts: root } : {}) });
     done.set(key, r.ts);
-    joined(channel, root ?? r.ts);
+    joined(channel, root ?? r.ts, d.address.topicId);
     return r.ts;
   };
 
@@ -293,7 +312,7 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
     // Slack does not say which message the share became; the id only stands for it.
     const id = `file:${uploaded[0]!.id}`;
     done.set(key, id);
-    if (root) joined(channel, root);
+    if (root) joined(channel, root, d.address.topicId);
     return id;
   };
 
@@ -371,6 +390,38 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
       }
     },
 
+    topics: {
+      /**
+       * A message naming the ticket, at the top of the channel; its thread is
+       * the ticket's topic. Its metadata marks it, since nothing else would
+       * tell it from another thread of the bot's after a restart.
+       */
+      async open({ operationId, address, title }) {
+        const channel = address.conversationId;
+        if (isDirect(channel)) throw new ImDeliveryError("A direct message has no ticket threads", "permanent");
+        const key = `${operationId}:t`;
+        let ts = done.get(key);
+        if (!ts) {
+          const text = escape(title);
+          ts = (await api.call<{ ts: string }>("chat.postMessage", { channel, text, metadata: { event_type: TOPIC_EVENT, event_payload: { operation: operationId } } })).ts;
+          done.set(key, ts);
+          titles.set(`${channel}:${ts}`, text);
+        }
+        threads.set(`${channel}:${ts}`, { ours: true, topic: true, root: { role: "root", messageId: ts, author: { id: botUserId, isBot: true }, text: title } });
+        return { topicId: ts };
+      },
+
+      /** Slack has no archive: a closed ticket's parent message is marked instead. */
+      async update({ address, title, closed }) {
+        const channel = address.conversationId;
+        const key = `${channel}:${address.topicId}`;
+        const text = `${closed ? "✅ " : ""}${escape(title)}`;
+        if (titles.get(key) === text) return;
+        await api.call("chat.update", { channel, ts: address.topicId, text }, { repeatable: true });
+        titles.set(key, text);
+      }
+    },
+
     stream: {
       /**
        * Slack's streaming methods, in the thread under the message that
@@ -387,7 +438,7 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
           try {
             const r = await api.call<{ ts: string }>("chat.startStream", { channel, thread_ts: root, markdown_text: md,
               ...(recipient ? { recipient_user_id: recipient, recipient_team_id: team } : {}) });
-            joined(channel, root);
+            joined(channel, root, d.address.topicId);
             streams.set(r.ts, { channel, text: d.content.text, sent: md, native: true });
             return { messageId: r.ts };
           } catch (e) {

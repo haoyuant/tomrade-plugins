@@ -8,7 +8,7 @@ export interface SFile {
 export interface SMessage {
   type: string; subtype?: string; channel: string; channel_type?: string; user?: string; bot_id?: string; text?: string;
   ts: string; thread_ts?: string; event_ts?: string; files?: SFile[]; edited?: { user?: string; ts: string };
-  message?: SMessage; previous_message?: SMessage;
+  message?: SMessage; previous_message?: SMessage; metadata?: { event_type?: string; event_payload?: Record<string, unknown> };
 }
 export interface SEventCallback { type: string; team_id?: string; event_id: string; event: { type: string } & Record<string, unknown> }
 export interface SStopped { type: "agent_session_stopped"; user?: string; channel?: string; thread_ts?: string; event_ts?: string; streaming_message_ts?: string[] }
@@ -45,13 +45,18 @@ export function tsOf(id: string): string | undefined {
   return TS.test(own) ? own : undefined;
 }
 
+/** The metadata event type on a ticket thread's parent message, which marks the thread as that ticket's topic. */
+export const TOPIC_EVENT = "tomrade_topic";
+
 /**
  * Where a message belongs. A direct message's thread is a conversation of its
  * own, as Slack's agent view shows it; a channel is one conversation, and each
- * answer goes into the thread of the message that asked.
+ * answer goes into the thread of the message that asked. A ticket's thread in
+ * a channel (`ticket`) is that ticket's topic.
  */
-export function addressOf(team: string, channel: string, ts: string | undefined, thread: string | undefined): ImAddress {
-  const topic = isDirect(channel) ? (thread && thread !== ts ? thread : ts) : undefined;
+export function addressOf(team: string, channel: string, ts: string | undefined, thread: string | undefined, ticket = false): ImAddress {
+  const reply = thread && thread !== ts ? thread : undefined;
+  const topic = isDirect(channel) ? reply ?? ts : ticket ? reply : undefined;
   return { tenantId: team, conversationId: channel, ...(topic ? { topicId: topic } : {}) };
 }
 

@@ -7,6 +7,8 @@ describe("addresses", () => {
     expect(addressOf("T1", "D1", "1.2", "1.1")).toEqual({ tenantId: "T1", conversationId: "D1", topicId: "1.1" });
     expect(addressOf("T1", "D1", undefined, undefined)).toEqual({ tenantId: "T1", conversationId: "D1" });
     expect(addressOf("T1", "C1", "1.2", "1.1")).toEqual({ tenantId: "T1", conversationId: "C1" });
+    expect(addressOf("T1", "C1", "1.2", "1.1", true)).toEqual({ tenantId: "T1", conversationId: "C1", topicId: "1.1" });
+    expect(addressOf("T1", "C1", "1.1", undefined, true)).toEqual({ tenantId: "T1", conversationId: "C1" });
   });
 
   it("keeps a message's thread in its id", () => {
