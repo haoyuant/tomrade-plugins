@@ -1,15 +1,15 @@
 {
   "id": "tomrade/feishu",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Feishu / Lark",
-  "description": "Talk to a project's assistant from Feishu or Lark: direct chats, @mentions and topics in groups, card buttons, selects and forms for questions, and replies that stream into a card. Connects from this computer over Feishu's long connection.",
+  "description": "Talk to a project's assistant from Feishu or Lark: direct chats, @mentions and topics in groups, a topic per ticket being worked, card buttons, selects and forms for questions, and replies that stream into a card. Connects from this computer over Feishu's long connection.",
   "license": "Apache-2.0",
   "author": {
     "name": "Tomrade"
   },
   "repository": "https://github.com/haoyuant/tomrade-plugins",
   "engines": {
-    "sdk": "^0.2.5"
+    "sdk": "^0.2.19"
   },
   "main": "dist/index.js",
   "icon": "icon.svg",

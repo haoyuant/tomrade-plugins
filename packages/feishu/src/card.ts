@@ -111,3 +111,18 @@ export function controlOf(action: FCardAction["action"]): { control: Control; va
   const value = Array.isArray(raw) ? raw.map(String) : typeof raw === "string" ? raw : raw === undefined ? undefined : String(raw);
   return { control, ...(value !== undefined && (typeof value === "string" ? value.trim() : value.length) ? { value } : {}) };
 }
+
+/**
+ * A ticket topic's first message: the title as the card's header, in plain
+ * text so a title's `*` or `_` shows as typed, and a ✅ once it is closed
+ * (Feishu has no archive).
+ */
+export function topicCard(title: string, closed: boolean): Element {
+  const shown = closed ? `✅ ${title}` : title;
+  return {
+    schema: "2.0",
+    config: { update_multi: true, width_mode: "fill", summary: { content: clip(shown, LIMIT.summary) } },
+    header: { title: plain(shown), template: closed ? "green" : "blue" },
+    body: { elements: [] }
+  };
+}
