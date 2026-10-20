@@ -1,0 +1,21 @@
+{
+  "name": "@tomrade-plugins/hermes",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "description": "Hermes Agent (Nous Research) as a coding agent Tomrade runs over ACP, its sessions connected to Tomrade and its sign-in lent to the worker",
+  "scripts": {
+    "build": "tomrade-plugin build",
+    "dev": "tomrade-plugin dev",
+    "test": "tomrade-plugin test",
+    "check": "tomrade-plugin check --official",
+    "pack": "tomrade-plugin pack",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "zod": "4.4.3"
+  }
+}

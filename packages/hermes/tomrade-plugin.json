@@ -1,0 +1,34 @@
+{
+  "id": "tomrade/hermes",
+  "version": "0.1.0",
+  "title": "Hermes",
+  "description": "Hermes Agent from Nous Research as a coding agent in Tomrade: conversations and tickets run on your own Hermes over ACP with Tomrade's tools, a ticket can also go to Hermes in a terminal, its own sessions report to Tomrade once connected, and its sign-in answers Tomrade's background calls.",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Tomrade"
+  },
+  "repository": "https://github.com/haoyuant/tomrade-plugins",
+  "engines": {
+    "sdk": "^0.2.18"
+  },
+  "main": "dist/index.js",
+  "icon": "icon.svg",
+  "permissions": {
+    "network": [],
+    "fs": "any",
+    "exec": true,
+    "why": {
+      "fs": "Connecting Hermes writes Tomrade's reporting plugin into ~/.hermes/plugins and reads ~/.hermes/config.yaml; a background call keeps its usage file in a temporary folder.",
+      "exec": "Runs your own `hermes` command: its ACP server for conversations, `hermes config` and `hermes plugins` to connect it, and `hermes -z` for background calls."
+    }
+  },
+  "inject": [
+    "agent"
+  ],
+  "optional": [],
+  "contributes": {
+    "localAgents": [
+      "hermes"
+    ]
+  }
+}
