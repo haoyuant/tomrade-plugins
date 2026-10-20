@@ -1,0 +1,35 @@
+{
+  "id": "tomrade/gemini-cli",
+  "version": "0.1.0",
+  "title": "Gemini CLI",
+  "description": "Google's Gemini CLI as a coding agent in Tomrade: conversations and tickets run on your own Gemini CLI over ACP with Tomrade's tools, a ticket can also go to Gemini CLI in a terminal, and its sign-in answers Tomrade's background calls.",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Tomrade"
+  },
+  "repository": "https://github.com/haoyuant/tomrade-plugins",
+  "namespace": "gemini",
+  "engines": {
+    "sdk": "^0.2.18"
+  },
+  "main": "dist/index.js",
+  "icon": "icon.svg",
+  "permissions": {
+    "network": [],
+    "fs": "any",
+    "exec": true,
+    "why": {
+      "fs": "Reads Gemini CLI's settings in ~/.gemini to tell whether it can sign in and which model it uses; a background call runs in a temporary folder of its own and removes the session Gemini CLI saved for it under ~/.gemini/tmp.",
+      "exec": "Runs your own `gemini` command: its ACP server for conversations, and `gemini -p` for background calls."
+    }
+  },
+  "inject": [
+    "agent"
+  ],
+  "optional": [],
+  "contributes": {
+    "localAgents": [
+      "gemini"
+    ]
+  }
+}

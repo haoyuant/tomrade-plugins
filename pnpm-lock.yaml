@@ -54,6 +54,12 @@ importers:
 
   packages/feishu: {}
 
+  packages/gemini-cli:
+    devDependencies:
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
   packages/glm: {}
 
   packages/hermes:
