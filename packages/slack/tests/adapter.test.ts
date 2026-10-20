@@ -303,6 +303,112 @@ describe("messages and controls", () => {
   });
 });
 
+describe("ticket threads", () => {
+  const TITLE = "TOM-42 · Doing · Fix <login> & more";
+  const room = { tenantId: "T0FAKE", conversationId: "C0DEV" };
+
+  it("posts a parent message naming the ticket, whose thread is its topic, and leaves the channel's other threads alone", async () => {
+    const { fake, session, events } = await connect();
+    const { topicId } = await session.topics!.open({ operationId: "topic:1", address: room, title: TITLE });
+    const parent = fake.find("C0DEV", topicId)!;
+    expect(parent).toMatchObject({ text: "TOM-42 · Doing · Fix &lt;login&gt; &amp; more", metadata: { event_type: "tomrade_topic" } });
+    expect(parent.thread).toBeUndefined();
+
+    const reply = fake.message({ channel: "C0DEV", user: "U0ANN", text: "what is left?", thread: topicId });
+    await until("the reply", () => events.length === 1);
+    expect(message(events)).toMatchObject({ activation: "reply", messageId: `${reply.ts}@${topicId}`, address: { ...room, topicId } });
+
+    const asked = fake.message({ channel: "C0DEV", user: "U0ANN", text: "help", mention: true });
+    await until("the mention", () => events.length === 2);
+    await session.deliver(delivery({ channel: "C0DEV", threadId: asked.ts }));
+    fake.message({ channel: "C0DEV", user: "U0ANN", text: "and?", thread: asked.ts });
+    await until("the follow-up", () => events.length === 3);
+    expect(message(events)).toMatchObject({ activation: "reply", address: room });
+    expect(message(events).address.topicId).toBeUndefined();
+  });
+
+  it("posts, streams and shows its status into the ticket's thread, and its buttons answer from there", async () => {
+    const { fake, session, events } = await connect();
+    const { topicId } = await session.topics!.open({ operationId: "topic:1", address: room, title: TITLE });
+    const { messageId } = await session.deliver(delivery({ channel: "C0DEV", topic: topicId, threadId: topicId, content: { text: "Ship it?", actions: [{ label: "Yes", token: "tk" }] } }));
+    expect(fake.find("C0DEV", messageId)!.thread).toBe(topicId);
+    const button = elements(fake.find("C0DEV", messageId)!.blocks).find(e => e.type === "button")!;
+    fake.press({ channel: "C0DEV", ts: messageId, user: "U0ANN", action: { type: "button", block_id: "x", action_id: button.action_id, value: button.value } });
+    await until("the press", () => events.length === 1);
+    expect(action(events).address).toEqual({ ...room, topicId });
+
+    fake.message({ channel: "C0DEV", user: "U0ANN", text: "go", thread: topicId });
+    await until("the message", () => events.length === 2);
+    const streamed = await session.stream!.start(delivery({ channel: "C0DEV", topic: topicId, content: { text: "On it" } }));
+    expect(fake.find("C0DEV", streamed.messageId)).toMatchObject({ thread: topicId, streaming: true });
+    await session.indicate!({ address: { ...room, topicId }, state: "typing" });
+    expect(fake.statuses.at(-1)).toMatchObject({ channel: "C0DEV", thread: topicId });
+  });
+
+  it("knows a ticket's thread after a restart, by its parent's metadata", async () => {
+    const fake = new FakeSlack();
+    const first = await connect(fake);
+    const { topicId } = await first.session.topics!.open({ operationId: "topic:1", address: room, title: TITLE });
+    const { topicId: other } = await first.session.topics!.open({ operationId: "topic:2", address: room, title: "TOM-43 · Doing · Else" });
+    const asked = fake.message({ channel: "C0DEV", user: "U0ANN", text: "help", mention: true });
+    await until("the mention", () => first.events.length === 1);
+    await first.session.deliver(delivery({ channel: "C0DEV", threadId: asked.ts }));
+    first.close();
+
+    const second = await connect(fake);
+    fake.message({ channel: "C0DEV", user: "U0ANN", text: "still on it?", thread: topicId });
+    fake.message({ channel: "C0DEV", user: "U0ANN", text: "and this?", thread: asked.ts });
+    await until("both", () => second.events.length === 2);
+    expect(message(second.events, 0)).toMatchObject({ activation: "reply", address: { ...room, topicId } });
+    expect(message(second.events, 1)).toMatchObject({ activation: "reply", address: room });
+    expect(message(second.events, 1).address.topicId).toBeUndefined();
+    expect(fake.where("conversations.replies")[0]!.args.include_all_metadata).toBe("true");
+
+    // A delivery into a ticket thread the restarted adapter has not read yet marks it as the ticket's.
+    await second.session.deliver(delivery({ channel: "C0DEV", topic: other, threadId: other }));
+    fake.message({ channel: "C0DEV", user: "U0ANN", text: "next?", thread: other });
+    await until("the third", () => second.events.length === 3);
+    expect(message(second.events)).toMatchObject({ address: { ...room, topicId: other } });
+  });
+
+  it("posts the parent once for one operation", async () => {
+    const { fake, session } = await connect();
+    const first = await session.topics!.open({ operationId: "topic:1", address: room, title: TITLE });
+    expect(await session.topics!.open({ operationId: "topic:1", address: room, title: TITLE })).toEqual(first);
+    expect(fake.posted("C0DEV")).toHaveLength(1);
+  });
+
+  it("rewrites the parent as the ticket moves, marks it closed once done, and skips what changes nothing", async () => {
+    const { fake, session } = await connect();
+    const { topicId } = await session.topics!.open({ operationId: "topic:1", address: room, title: "TOM-42 · Doing · Fix" });
+    const address = { ...room, topicId };
+    await session.topics!.update({ address, title: "TOM-42 · Doing · Fix", closed: false });
+    await session.topics!.update({ address, title: "TOM-42 · Verifying · Fix", closed: false });
+    await session.topics!.update({ address, title: "TOM-42 · Done · Fix", closed: true });
+    await session.topics!.update({ address, title: "TOM-42 · Done · Fix", closed: true });
+    await session.topics!.update({ address, title: "TOM-42 · Doing · Fix", closed: false });
+    expect(fake.where("chat.update").map(c => c.args.text)).toEqual(["TOM-42 · Verifying · Fix", "✅ TOM-42 · Done · Fix", "TOM-42 · Doing · Fix"]);
+    expect(fake.find("C0DEV", topicId)).toMatchObject({ text: "TOM-42 · Doing · Fix", metadata: { event_type: "tomrade_topic" } });
+  });
+
+  it("opens no thread in a direct message, and reports Slack's refusals and limits as posting does", async () => {
+    const { fake, session } = await connect();
+    await expect(session.topics!.open({ operationId: "t0", address: { tenantId: "T0FAKE", conversationId: "D0ANN" }, title: TITLE }))
+      .rejects.toMatchObject({ disposition: "permanent" });
+    expect(fake.where("chat.postMessage")).toHaveLength(0);
+    fake.failNext(c => c.method === "chat.postMessage", 429, "ratelimited", { retryAfter: 2 });
+    await expect(session.topics!.open({ operationId: "t1", address: room, title: TITLE })).rejects.toMatchObject({ disposition: "retryable", retryAfterMs: 2000 });
+    fake.failNext(c => c.method === "chat.postMessage", 500, "internal_error");
+    await expect(session.topics!.open({ operationId: "t2", address: room, title: TITLE })).rejects.toMatchObject({ disposition: "uncertain" });
+    fake.failNext(c => c.method === "chat.postMessage", 200, "not_in_channel");
+    await expect(session.topics!.open({ operationId: "t3", address: room, title: TITLE })).rejects.toMatchObject({ disposition: "permanent" });
+    const { topicId } = await session.topics!.open({ operationId: "t4", address: room, title: TITLE });
+    fake.failNext(c => c.method === "chat.update", 500, "internal_error");
+    await expect(session.topics!.update({ address: { ...room, topicId }, title: "x", closed: false })).rejects.toMatchObject({ disposition: "retryable" });
+    await expect(session.topics!.update({ address: { ...room, topicId: "1600000000.000001" }, title: "x", closed: false })).rejects.toMatchObject({ disposition: "permanent" });
+  });
+});
+
 describe("streaming", () => {
   const stream = (session: ImAdapterSession) => session.stream!;
 

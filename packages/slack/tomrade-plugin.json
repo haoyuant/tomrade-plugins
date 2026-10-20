@@ -1,6 +1,6 @@
 {
   "id": "tomrade/slack",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Slack",
   "description": "Talk to a project's assistant from Slack: direct messages and the agent view, @mentions and threads in channels, buttons, selects and text entries for questions, replies that stream, and the /tomrade command. Connects from this computer over Socket Mode.",
   "license": "Apache-2.0",
@@ -9,7 +9,7 @@
   },
   "repository": "https://github.com/haoyuant/tomrade-plugins",
   "engines": {
-    "sdk": "^0.2.5"
+    "sdk": "^0.2.19"
   },
   "main": "dist/index.js",
   "icon": "icon.svg",
