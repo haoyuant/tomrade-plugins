@@ -7,7 +7,8 @@ import vertex from "../src/index.js";
 import { adcPath, defaultProject, googleToken } from "../src/credentials.js";
 import { UNSIGNED, readGemini, sseData, toGemini, type Part } from "../src/gemini.js";
 import { GeminiModel } from "../src/model.js";
-import { KEY_MODELS, MAAS, NO_PROJECT, address, authorize, listModels, locationOf, media, projectOf, usable } from "../src/vertex.js";
+import { ClaudeModel } from "../src/claude-model.js";
+import { CLAUDE, KEY_MODELS, MAAS, NO_PROJECT, address, authorize, hostOf, listModels, locationOf, media, projectOf, usable } from "../src/vertex.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -372,20 +373,27 @@ const LISTED = ["gemini-2.5-flash", "gemini-3.8-flash", "gemini-4-argon", "gemin
 it("lists Google's Gemini text models and the open models, page by page, with the credentials as the check", async () => {
   const seen: { url: string; headers: Headers }[] = [];
   let status = 200;
+  let claudeListed = true;
   vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
     seen.push({ url, headers: new Headers(init?.headers) });
     if (status !== 200) return new Response(JSON.stringify({ error: { code: status, message: "Permission 'aiplatform.publishers.get' denied on resource.", status: "PERMISSION_DENIED" } }), { status });
+    if (url.includes("/publishers/anthropic/")) return claudeListed ? new Response(JSON.stringify({ publisherModels: ["claude-sonnet-5-5", "claude-opus-5-5"].map((id) => ({ name: `publishers/anthropic/models/${id}` })) })) : new Response("{}", { status: 403 });
     const first = !url.includes("pageToken");
     const names = first ? LISTED.slice(0, 8) : LISTED.slice(8);
     return new Response(JSON.stringify({ publisherModels: names.map((id) => ({ name: `publishers/google/models/${id}` })), ...(first ? { nextPageToken: "p 2" } : {}) }));
   });
   const signal = new AbortController().signal;
   const listed = await listModels(BASE, { apiKey: "", token: user }, signal);
-  expect(listed).toEqual({ ok: true, models: ["gemini-2.5-flash", "gemini-3.8-flash", "gemini-4-argon", "gemini-3.1-pro-preview", "google/gemma-4-26b-a4b-it-maas", ...MAAS] });
+  expect(listed).toEqual({ ok: true, models: ["gemini-2.5-flash", "gemini-3.8-flash", "gemini-4-argon", "gemini-3.1-pro-preview", "claude-sonnet-5-5", "claude-opus-5-5", "google/gemma-4-26b-a4b-it-maas", ...MAAS] });
   expect(seen.map((s) => s.url)).toEqual([
     "https://us-central1-aiplatform.googleapis.com/v1beta1/publishers/google/models?listAllVersions=false&pageSize=300",
-    "https://us-central1-aiplatform.googleapis.com/v1beta1/publishers/google/models?listAllVersions=false&pageSize=300&pageToken=p%202"
+    "https://us-central1-aiplatform.googleapis.com/v1beta1/publishers/google/models?listAllVersions=false&pageSize=300&pageToken=p%202",
+    "https://us-central1-aiplatform.googleapis.com/v1beta1/publishers/anthropic/models?pageSize=300"
   ]);
+  // Anthropic's listing unreadable: the Claude models Vertex is known to serve
+  claudeListed = false;
+  const known = await listModels(BASE, { apiKey: "", token: user }, signal);
+  expect(known.ok && known.models?.filter((id) => id.startsWith("claude-"))).toEqual(CLAUDE);
   expect(seen[0]!.headers.get("x-goog-user-project")).toBe("quota-project");
   seen.length = 0;
   await listModels("https://europe-west4-aiplatform.googleapis.com/v1/projects/my-project/locations/europe-west4", { apiKey: "", token: user }, signal);
@@ -401,15 +409,23 @@ it("lists Google's Gemini text models and the open models, page by page, with th
   expect(seen).toHaveLength(0);
 });
 
-it("puts Gemini first, the newest first, and knows what Gemini reads", () => {
-  expect(usable(["gemini-2.5-pro", "openai/gpt-oss-120b-maas", "gemini-3.8-flash", "gemini-4-argon", "gemini-3.10-flash", "google/gemma-4-26b-a4b-it-maas", "gemini-2.5-flash-tts"])).toEqual([
+it("puts Gemini first, then Claude, the newest first, and knows what Gemini and Claude read", () => {
+  expect(usable(["gemini-2.5-pro", "claude-haiku-4-5", "openai/gpt-oss-120b-maas", "claude-opus-5-5", "gemini-3.8-flash", "claude-sonnet-4-6", "gemini-4-argon", "claude-sonnet-5-5", "gemini-3.10-flash", "claude-sonnet-5", "google/gemma-4-26b-a4b-it-maas", "gemini-2.5-flash-tts"])).toEqual([
     "gemini-4-argon",
     "gemini-3.10-flash",
     "gemini-3.8-flash",
     "gemini-2.5-pro",
+    "claude-sonnet-5-5",
+    "claude-opus-5-5",
+    "claude-sonnet-5",
+    "claude-sonnet-4-6",
+    "claude-haiku-4-5",
     "openai/gpt-oss-120b-maas",
     "google/gemma-4-26b-a4b-it-maas"
   ]);
+  expect(media("claude-sonnet-5-5")).toEqual({ inputModalities: ["image", "pdf"], outputModalities: [] });
+  expect(media("anthropic/claude-opus-5-5")?.inputModalities).toEqual(["image", "pdf"]);
+  expect([hostOf("global"), hostOf("us"), hostOf("eu"), hostOf("europe-west4")]).toEqual(["aiplatform.googleapis.com", "aiplatform.us.rep.googleapis.com", "aiplatform.eu.rep.googleapis.com", "europe-west4-aiplatform.googleapis.com"]);
   expect(media("gemini-3.8-flash")).toEqual({ inputModalities: ["image", "pdf", "audio", "video"], outputModalities: [] });
   expect(media("google/gemini-4-argon")?.inputModalities).toContain("video");
   expect(media("deepseek-ai/deepseek-v3.2-maas")).toBeUndefined();
@@ -462,7 +478,11 @@ it("builds the open models on the app's compatible adapter at Vertex's OpenAI en
     expect(await built[0]!.headers!({ url: `${BASE}/endpoints/openapi/chat/completions`, body: "{}" })).toEqual({ authorization: "Bearer ya29.maas", "x-goog-user-project": "quota-project" });
     expect(spec.build({ id: "x", title: "", provider: "vertex", apiKey: "", model: "google/gemini-3.8-flash" })).toBeInstanceOf(GeminiModel);
     const keyed = spec.build({ id: "k", title: "", provider: "vertex", apiKey: "AQ.key", model: "openai/gpt-oss-120b-maas" });
-    await expect(collect(keyed.chat(request()))).rejects.toThrow(/serves only to Google Cloud credentials/);
+    await expect(collect(keyed.chat(request()))).rejects.toThrow(/is an open model, which Vertex AI serves only to Google Cloud credentials/);
+    // Claude, bare or with its publisher, on its own adapter, and not to an API key either
+    expect(spec.build({ id: "c", title: "", provider: "vertex", apiKey: "", model: "claude-sonnet-5-5" })).toBeInstanceOf(ClaudeModel);
+    expect(spec.build({ id: "c2", title: "", provider: "vertex", apiKey: "", model: "anthropic/claude-opus-5-5" })).toBeInstanceOf(ClaudeModel);
+    await expect(collect(spec.build({ id: "c3", title: "", provider: "vertex", apiKey: "AQ.key", model: "claude-sonnet-5-5" }).chat(request()))).rejects.toThrow(/is Anthropic's model/);
     expect(built).toHaveLength(2);
   } finally {
     rmSync(dir, { recursive: true, force: true });

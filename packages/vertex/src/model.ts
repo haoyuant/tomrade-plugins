@@ -107,10 +107,10 @@ export class GeminiModel implements ModelChat {
   }
 }
 
-/** An open model asked for with an API key, which reaches Gemini only. */
-export const keyedOpenModel = (model: string): ModelChat => ({
+/** An open model or Claude asked for with an API key, which reaches Gemini only. */
+export const keyedOnly = (model: string, what: string): ModelChat => ({
   capabilities: { tools: true, streaming: true, json: true },
   async *chat() {
-    throw new Error(`${model} is an open model, which Vertex AI serves only to Google Cloud credentials: use the Google Vertex AI preset (gcloud), or pick a Gemini model for this API key`);
+    throw new Error(`${model} is ${what}, which Vertex AI serves only to Google Cloud credentials: use the Google Vertex AI preset (gcloud), or pick a Gemini model for this API key`);
   }
 });

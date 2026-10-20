@@ -2,7 +2,7 @@
   "id": "tomrade/vertex",
   "version": "0.1.0",
   "title": "Google Vertex AI",
-  "description": "Gemini and the open models Google serves on Vertex AI (gpt-oss, DeepSeek, Qwen, Llama…): Tomrade uses the credentials gcloud already holds, or a Vertex AI API key, and talks to Gemini through its own API, Google Search included.",
+  "description": "Gemini, Claude and the open models Google serves on Vertex AI (gpt-oss, DeepSeek, Qwen, Llama…): Tomrade uses the credentials gcloud already holds, or a Vertex AI API key for Gemini, and talks to Gemini and Claude through their own APIs.",
   "license": "Apache-2.0",
   "author": {
     "name": "Tomrade"

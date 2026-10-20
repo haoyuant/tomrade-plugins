@@ -1,8 +1,12 @@
 import type { ModelListing, ModelMedia } from "@tomradex/plugin-sdk";
 import type { GoogleToken } from "./credentials.js";
 
-/** The host of a location: the global endpoint has none in its name. */
-export const hostOf = (location: string): string => (location === "global" ? "aiplatform.googleapis.com" : `${location}-aiplatform.googleapis.com`);
+/** The host of a location: the global endpoint has none in its name, and the `us` and `eu` multi-regions have their own. */
+export const hostOf = (location: string): string =>
+  location === "global" ? "aiplatform.googleapis.com" : /^(us|eu)$/.test(location) ? `aiplatform.${location}.rep.googleapis.com` : `${location}-aiplatform.googleapis.com`;
+
+/** Where the publishers' models are listed for a location; the global and multi-region endpoints list nothing themselves. */
+const listingHost = (location: string): string => hostOf(location === "eu" ? "europe-west4" : location === "global" || location === "us" ? "us-central1" : location);
 
 export const base = (project: string, location = "global"): string => `https://${hostOf(location)}/v1/projects/${project}/locations/${location}`;
 
@@ -56,8 +60,14 @@ export function googleError(status: number, text: string): string {
   return `${status}${kind ? ` ${kind}` : ""}: ${message.slice(0, 400)}`;
 }
 
-/** Vertex's open models (MaaS) by their `publisher/model` id: anything with a publisher other than Google's, or a `-maas` id. */
-export const open = (model: string): boolean => (model.includes("/") && !/^(google\/|publishers\/google\/models\/)/.test(model)) || /-maas$/.test(model);
+/** Anthropic's Claude on Vertex, typed bare or with its publisher: the id its publisher path takes, else null. */
+export const claudeId = (model: string): string | null => {
+  const id = model.replace(/^(publishers\/anthropic\/models\/|anthropic\/)/, "");
+  return /^claude-/.test(id) ? id : null;
+};
+
+/** Vertex's open models (MaaS) by their `publisher/model` id: anything with a publisher other than Google's or Anthropic's, or a `-maas` id. */
+export const open = (model: string): boolean => !claudeId(model) && ((model.includes("/") && !/^(google\/|publishers\/google\/models\/)/.test(model)) || /-maas$/.test(model));
 
 /** A Gemini id as the publisher path takes it, typed bare or with Google's prefix. */
 export const geminiId = (model: string): string => model.replace(/^(publishers\/google\/models\/|google\/)/, "");
@@ -90,6 +100,9 @@ export const MAAS = [
   "meta/llama-3.3-70b-instruct-maas"
 ];
 
+/** The Claude models Vertex served on 2026-10-20, for a project whose listing of Anthropic's cannot be read. */
+export const CLAUDE = ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "claude-fable-5-1", "claude-sonnet-5", "claude-opus-5", "claude-opus-4-8", "claude-opus-4-7", "claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5"];
+
 export const NO_PROJECT = "No Google Cloud project is set. Type your project id in the profile's address, or run `gcloud config set project <your-project-id>` and restart Tomrade.";
 
 /**
@@ -105,7 +118,7 @@ export async function listModels(baseURL: string, auth: Auth, signal: AbortSigna
     const listed: string[] = [];
     let next = "";
     for (let page = 0; page < 10; page += 1) {
-      const url = `https://${hostOf(location === "global" ? "us-central1" : location)}/v1beta1/publishers/google/models?listAllVersions=false&pageSize=300${next ? `&pageToken=${encodeURIComponent(next)}` : ""}`;
+      const url = `https://${listingHost(location)}/v1beta1/publishers/google/models?listAllVersions=false&pageSize=300${next ? `&pageToken=${encodeURIComponent(next)}` : ""}`;
       const res = await fetch(url, { headers: await authorize(auth, project), signal });
       if (!res.ok) return { ok: false, status: res.status, detail: googleError(res.status, await res.text().catch(() => "")) };
       const body = (await res.json()) as { publisherModels?: { name?: string }[]; nextPageToken?: string };
@@ -113,19 +126,37 @@ export async function listModels(baseURL: string, auth: Auth, signal: AbortSigna
       next = body.nextPageToken ?? "";
       if (!next) break;
     }
-    return { ok: true, models: [...listed.filter(geminiChat), ...listed.filter((id) => id.endsWith("-maas")).map((id) => `google/${id}`), ...MAAS] };
+    const claude = await fetch(`https://${listingHost(location)}/v1beta1/publishers/anthropic/models?pageSize=300`, { headers: await authorize(auth, project), signal })
+      .then(async (res) => (res.ok ? ((await res.json()) as { publisherModels?: { name?: string }[] }).publisherModels?.map((m) => m.name?.split("/").pop() ?? "").filter((id) => id.startsWith("claude-")) : null))
+      .catch(() => null);
+    return { ok: true, models: [...listed.filter(geminiChat), ...(claude?.length ? claude : CLAUDE), ...listed.filter((id) => id.endsWith("-maas")).map((id) => `google/${id}`), ...MAAS] };
   } catch (error) {
     return { ok: false, detail: error instanceof Error ? error.message : String(error) };
   }
 }
 
-/** Gemini first, the newest first; then the open models as listed. */
+/** A Claude id's version, `claude-sonnet-5-5` → 505, for newest first. */
+const versionOf = (id: string): number => {
+  const [, major = "0", minor = "0"] = /-(\d+)(?:-(\d+))?(?:@|$)/.exec(id) ?? [];
+  return Number(major) * 100 + (minor.length > 2 ? 0 : Number(minor));
+};
+const FAMILIES = ["sonnet", "opus", "haiku"];
+const familyOf = (id: string): number => {
+  const at = FAMILIES.findIndex((f) => id.includes(`-${f}-`));
+  return at < 0 ? FAMILIES.length : at;
+};
+
+/** Gemini first, the newest first; then Claude, the newest first; then the open models as listed. */
 export function usable(listed: string[]): string[] {
-  const gemini = listed.filter((id) => !open(id) && geminiChat(geminiId(id))).sort((a, b) => b.localeCompare(a, "en", { numeric: true }));
-  return [...new Set([...gemini, ...listed.filter(open)])];
+  const gemini = listed.filter((id) => !open(id) && !claudeId(id) && geminiChat(geminiId(id))).sort((a, b) => b.localeCompare(a, "en", { numeric: true }));
+  const claude = listed.filter((id) => claudeId(id)).sort((a, b) => versionOf(claudeId(b)!) - versionOf(claudeId(a)!) || familyOf(a) - familyOf(b) || a.localeCompare(b));
+  return [...new Set([...gemini, ...claude, ...listed.filter(open)])];
 }
 
 export const GEMINI_MEDIA: ModelMedia = { inputModalities: ["image", "pdf", "audio", "video"], outputModalities: [] };
 
-/** Gemini reads pictures, PDFs, sound and video; what the open models read is left to the profile. */
-export const media = (model: string, listed?: ModelMedia): ModelMedia | undefined => listed ?? (!open(model) && /^gemini-/.test(geminiId(model)) ? GEMINI_MEDIA : undefined);
+export const CLAUDE_MEDIA: ModelMedia = { inputModalities: ["image", "pdf"], outputModalities: [] };
+
+/** Gemini reads pictures, PDFs, sound and video, Claude pictures and PDFs; what the open models read is left to the profile. */
+export const media = (model: string, listed?: ModelMedia): ModelMedia | undefined =>
+  listed ?? (claudeId(model) ? CLAUDE_MEDIA : !open(model) && /^gemini-/.test(geminiId(model)) ? GEMINI_MEDIA : undefined);
