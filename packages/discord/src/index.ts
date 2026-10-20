@@ -26,7 +26,7 @@ export default definePlugin({
           { en: "Optional: to let the assistant see a channel's recent discussion when @mentioned, turn on **Message Content Intent** under **Bot**, type `on` in the optional field below, and turn on the window for that group in its route. Off by default; the messages stay on this computer.", zh: "可选：想让助手被 @ 时看到频道最近的讨论，在 **Bot** 页打开 **Message Content Intent**，在下面的可选字段填 `on`，再在该群的路由里打开上下文窗口。默认关闭；消息只保存在这台电脑上。" },
           { en: "Save and connect. Then send the bot a direct message with the pairing code from Tomrade, and @mention it in a channel to use it there.", zh: "保存并连接。然后私信机器人发送 Tomrade 里的配对码；在频道里 @ 它即可在频道使用。" }
         ],
-        permissions: ["View Channels", "Send Messages", "Send Messages in Threads", "Read Message History", "Embed Links", "Attach Files", "Add Reactions"],
+        permissions: ["View Channels", "Send Messages", "Send Messages in Threads", "Create Public Threads", "Manage Threads", "Read Message History", "Embed Links", "Attach Files", "Add Reactions"],
         docsUrl: "https://discord.com/developers/applications"
       },
       open: (connectionId, io) => openDiscord(connectionId, io)

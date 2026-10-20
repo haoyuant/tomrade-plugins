@@ -23,7 +23,7 @@ export const INTENTS = (1 << 0) | (1 << 9) | (1 << 12);
 /** The privileged intent that lets other people's channel messages arrive with their text; only when the person turned it on in the portal. */
 export const MESSAGE_CONTENT = 1 << 15;
 export const wantsContent = (value: string | undefined) => /^(on|yes|true|1)$/i.test(value?.trim() ?? "");
-export const LIMIT = { text: 2000, embeds: 10, title: 256, description: 4096, fields: 25, fieldName: 256, fieldValue: 1024, rows: 5, perRow: 5, label: 80, options: 25, optionText: 100 };
+export const LIMIT = { text: 2000, embeds: 10, title: 256, description: 4096, fields: 25, fieldName: 256, fieldValue: 1024, rows: 5, perRow: 5, label: 80, options: 25, optionText: 100, threadName: 100 };
 
 /** Message types a person sends: a plain message and a reply. */
 const SPOKEN = new Set([0, 19]);
@@ -31,6 +31,25 @@ const THREAD_TYPES = new Set([10, 11, 12]);
 export const isThread = (type: number) => THREAD_TYPES.has(type);
 
 const clip = (text: string, n: number) => ([...text].length > n ? `${[...text].slice(0, n - 1).join("")}…` : text);
+
+export const threadName = (title: string) => clip(title, LIMIT.threadName);
+
+/** Channel types that hold posts rather than messages: forum and media. */
+const POSTS = new Set([15, 16]);
+const ANNOUNCEMENTS = 5;
+/** A week of quiet before Discord archives a ticket's thread on its own. */
+const ARCHIVE_MINUTES = 10080;
+
+/**
+ * A ticket's thread for a channel of this type: a post in a forum or media
+ * channel (whose first message is the title), an announcement thread in an
+ * announcement channel, else a public thread with no starter message.
+ */
+export function threadOf(channelType: number, title: string): Record<string, unknown> {
+  const name = threadName(title);
+  if (POSTS.has(channelType)) return { name, auto_archive_duration: ARCHIVE_MINUTES, message: { content: clip(title, LIMIT.text), allowed_mentions: { parse: [] } } };
+  return { name, type: channelType === ANNOUNCEMENTS ? 10 : 11, auto_archive_duration: ARCHIVE_MINUTES };
+}
 const nameOf = (u: DUser) => u.global_name || u.username;
 export const actorOf = (u: DUser) => ({ id: u.id, name: nameOf(u), isBot: !!u.bot });
 
