@@ -1,0 +1,34 @@
+{
+  "id": "tomrade/opencode",
+  "version": "0.1.0",
+  "title": "OpenCode",
+  "description": "OpenCode as a coding agent in Tomrade: conversations and tickets run on your own OpenCode over ACP with Tomrade's tools, a ticket can also go to OpenCode in a terminal, its own sessions report to Tomrade once connected, and its providers answer Tomrade's background calls.",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Tomrade"
+  },
+  "repository": "https://github.com/haoyuant/tomrade-plugins",
+  "engines": {
+    "sdk": "^0.2.18"
+  },
+  "main": "dist/index.js",
+  "icon": "icon.svg",
+  "permissions": {
+    "network": [],
+    "fs": "any",
+    "exec": true,
+    "why": {
+      "fs": "Connecting OpenCode adds a tomrade server to ~/.config/opencode/opencode.json and writes Tomrade's reporting plugin to ~/.config/opencode/plugins/tomrade.js; a background call keeps its one-call config in a temporary folder.",
+      "exec": "Runs your own `opencode` command: `opencode acp` for conversations, `opencode models` to list its models, and `opencode run` for background calls."
+    }
+  },
+  "inject": [
+    "agent"
+  ],
+  "optional": [],
+  "contributes": {
+    "localAgents": [
+      "opencode"
+    ]
+  }
+}
