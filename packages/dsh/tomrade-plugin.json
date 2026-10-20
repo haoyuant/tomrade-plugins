@@ -1,0 +1,34 @@
+{
+  "id": "tomrade/dsh",
+  "version": "0.1.0",
+  "title": "DeepSeek Harness",
+  "description": "DeepSeek Harness (dsh) as a coding agent in Tomrade: conversations and tickets run on your own dsh over ACP with Tomrade's tools, found inside the DeepSeek Harness desktop app when it is not on PATH, a ticket can also go to dsh in a terminal, and its DeepSeek account or key answers Tomrade's background calls.",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Tomrade"
+  },
+  "repository": "https://github.com/haoyuant/tomrade-plugins",
+  "engines": {
+    "sdk": "^0.2.18"
+  },
+  "main": "dist/index.js",
+  "icon": "icon.svg",
+  "permissions": {
+    "network": [],
+    "fs": "any",
+    "exec": true,
+    "why": {
+      "fs": "A background call writes a one-run dsh plugin, its patch and its session into a temporary folder that is removed afterwards, and runs in an empty temporary folder of its own.",
+      "exec": "Runs your own `dsh` command, or the one inside the DeepSeek Harness app: `dsh --profile acp` for conversations and `dsh --profile headless` for background calls."
+    }
+  },
+  "inject": [
+    "agent"
+  ],
+  "optional": [],
+  "contributes": {
+    "localAgents": [
+      "dsh"
+    ]
+  }
+}
