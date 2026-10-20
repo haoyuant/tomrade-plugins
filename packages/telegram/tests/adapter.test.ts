@@ -510,3 +510,108 @@ describe("limits", () => {
   });
 });
 
+
+describe("ticket topics", () => {
+  const TITLE = "TOM-42 · Doing · Fix the login page";
+  const group = { tenantId: "telegram", conversationId: String(GROUP) };
+  const forum = async () => {
+    const fake = new FakeTelegram();
+    fake.forums.add(GROUP);
+    return connect(fake);
+  };
+
+  it("opens a topic in a forum, and what people write in it arrives with its topicId", async () => {
+    const { fake, session, events } = await forum();
+    const { topicId } = await session.topics!.open({ operationId: "topic:1", address: group, title: TITLE });
+    expect(fake.where("createForumTopic")[0]!.params).toEqual({ chat_id: GROUP, name: TITLE });
+    // The topic's id is its opening message's, the message_thread_id of everything in it.
+    expect(fake.messages.get(`${GROUP}:${topicId}`)).toMatchObject({ message_thread_id: Number(topicId), forum_topic_created: { name: TITLE } });
+    expect(fake.topics.get(`${GROUP}:${topicId}`)).toEqual({ name: TITLE, closed: false });
+    fake.message({ from: fake.ann, chat: GROUP, topic: Number(topicId), text: "@tomrade_bot what is left?" });
+    await until("the topic's message", () => events.length === 1);
+    expect(message(events)).toMatchObject({ text: "what is left?", address: { ...group, topicId }, context: [{ role: "root", text: TITLE, author: { id: "123456789" } }] });
+  });
+
+  it("delivers into the topic", async () => {
+    const { fake, session } = await forum();
+    const { topicId } = await session.topics!.open({ operationId: "topic:1", address: group, title: TITLE });
+    const { messageId } = await session.deliver(delivery({ chat: GROUP, topic: topicId, content: { text: "TOM-42 moved to Doing" } }));
+    expect(fake.where("sendMessage").at(-1)!.params).toMatchObject({ chat_id: GROUP, message_thread_id: Number(topicId) });
+    expect(fake.posted(GROUP).find(m => String(m.message_id) === messageId)).toMatchObject({ message_thread_id: Number(topicId), is_topic_message: true });
+    await session.deliver(delivery({ chat: GROUP, threadId: topicId }));
+    expect(fake.where("sendMessage").at(-1)!.params).toMatchObject({ message_thread_id: Number(topicId) });
+  });
+
+  it("clips a long name to Telegram's 128 characters", async () => {
+    const { fake, session } = await forum();
+    const { topicId } = await session.topics!.open({ operationId: "topic:1", address: group, title: `TOM-42 · Doing · ${"x".repeat(200)}` });
+    const name = fake.topics.get(`${GROUP}:${topicId}`)!.name;
+    expect([...name]).toHaveLength(128);
+    expect(name.endsWith("…")).toBe(true);
+  });
+
+  it("renames only when the name changes, and closes and reopens only when that changes", async () => {
+    const { fake, session } = await forum();
+    const { topicId } = await session.topics!.open({ operationId: "topic:1", address: group, title: TITLE });
+    const address = { ...group, topicId };
+    await session.topics!.update({ address, title: TITLE, closed: false });
+    expect(fake.calls.filter(c => /ForumTopic$/.test(c.method) && c.method !== "createForumTopic")).toHaveLength(0);
+    await session.topics!.update({ address, title: "TOM-42 · Verifying · Fix the login page", closed: false });
+    await session.topics!.update({ address, title: "TOM-42 · Done · Fix the login page", closed: true });
+    await session.topics!.update({ address, title: "TOM-42 · Done · Fix the login page", closed: true });
+    await session.topics!.update({ address, title: "TOM-42 · Doing · Fix the login page", closed: false });
+    const thread = Number(topicId);
+    expect(fake.calls.filter(c => /^(edit|close|reopen)ForumTopic$/.test(c.method)).map(c => [c.method, c.params])).toEqual([
+      ["editForumTopic", { chat_id: GROUP, message_thread_id: thread, name: "TOM-42 · Verifying · Fix the login page" }],
+      ["editForumTopic", { chat_id: GROUP, message_thread_id: thread, name: "TOM-42 · Done · Fix the login page" }],
+      ["closeForumTopic", { chat_id: GROUP, message_thread_id: thread }],
+      ["reopenForumTopic", { chat_id: GROUP, message_thread_id: thread }],
+      ["editForumTopic", { chat_id: GROUP, message_thread_id: thread, name: TITLE }]
+    ]);
+    expect(fake.topics.get(`${GROUP}:${topicId}`)).toEqual({ name: TITLE, closed: false });
+  });
+
+  it("after a restart, takes Telegram's \"not modified\" as done", async () => {
+    const fake = new FakeTelegram();
+    const topic = fake.topic(GROUP, "TOM-42 · Done · Fix the login page");
+    fake.topics.get(`${GROUP}:${topic}`)!.closed = true;
+    const { session } = await connect(fake);
+    const address = { ...group, topicId: String(topic) };
+    await session.topics!.update({ address, title: "TOM-42 · Done · Fix the login page", closed: true });
+    expect(fake.calls.filter(c => /^(edit|close)ForumTopic$/.test(c.method)).map(c => c.method)).toEqual(["editForumTopic", "closeForumTopic"]);
+    fake.failNext(c => c.method === "reopenForumTopic", 400, "Bad Request: TOPIC_NOT_MODIFIED");
+    await session.topics!.update({ address, title: "TOM-42 · Doing · Fix the login page", closed: false });
+    expect(fake.topics.get(`${GROUP}:${topic}`)).toEqual({ name: "TOM-42 · Doing · Fix the login page", closed: true });
+  });
+
+  it("opens none in a direct chat, and a group that is not a forum refuses for good", async () => {
+    const { fake, session } = await connect();
+    await expect(session.topics!.open({ operationId: "topic:1", address: { tenantId: "telegram", conversationId: String(fake.ann.id) }, title: TITLE }))
+      .rejects.toMatchObject({ disposition: "permanent" });
+    expect(fake.where("createForumTopic")).toHaveLength(0);
+    await expect(session.topics!.open({ operationId: "topic:2", address: group, title: TITLE })).rejects.toMatchObject({ disposition: "permanent", description: "Bad Request: the chat is not a forum" });
+  });
+
+  it("maps Telegram's errors as sending does", async () => {
+    const { fake, session } = await forum();
+    fake.failNext(c => c.method === "createForumTopic", 429, "Too Many Requests: retry after 3", { retryAfter: 3 });
+    await expect(session.topics!.open({ operationId: "topic:1", address: group, title: TITLE })).rejects.toMatchObject({ disposition: "retryable", retryAfterMs: 3000 });
+    fake.failNext(c => c.method === "createForumTopic", 400, "Bad Request: not enough rights to create a topic");
+    await expect(session.topics!.open({ operationId: "topic:1", address: group, title: TITLE })).rejects.toMatchObject({ disposition: "permanent" });
+    // A topic whose answer was lost may exist: uncertain, so it is not opened twice.
+    fake.drop(1);
+    await expect(session.topics!.open({ operationId: "topic:1", address: group, title: TITLE })).rejects.toMatchObject({ disposition: "uncertain" });
+    const { topicId } = await session.topics!.open({ operationId: "topic:1", address: group, title: TITLE });
+    const address = { ...group, topicId };
+    fake.failNext(c => c.method === "editForumTopic", 502, "Bad Gateway");
+    await expect(session.topics!.update({ address, title: "TOM-42 · Done · Fix the login page", closed: true })).rejects.toMatchObject({ disposition: "retryable" });
+    fake.drop(1);
+    await expect(session.topics!.update({ address, title: "TOM-42 · Done · Fix the login page", closed: true })).rejects.toMatchObject({ disposition: "retryable" });
+    fake.failNext(c => c.method === "closeForumTopic", 400, "Bad Request: CHAT_ADMIN_REQUIRED");
+    await expect(session.topics!.update({ address, title: "TOM-42 · Done · Fix the login page", closed: true })).rejects.toMatchObject({ disposition: "permanent" });
+    // The rename went through before the refusal, so only the close is tried again.
+    await session.topics!.update({ address, title: "TOM-42 · Done · Fix the login page", closed: true });
+    expect(fake.where("editForumTopic").map(c => c.params.name)).toEqual(Array(3).fill("TOM-42 · Done · Fix the login page"));
+    expect(fake.topics.get(`${GROUP}:${topicId}`)).toEqual({ name: "TOM-42 · Done · Fix the login page", closed: true });
+  });
+});

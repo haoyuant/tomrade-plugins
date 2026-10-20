@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { ImAdapter, ImAdapterSession, ImAddress, ImCapabilities, ImContent, ImInbound } from "@tomradex/plugin-sdk";
-import { Api, net, TelegramError, unchanged, unparsable, type Net } from "./api.js";
+import { Api, net, TelegramError, unchanged, unparsable, untouched, type Net } from "./api.js";
 import { clip, Codec, esc, inputOf, labelOf, plainOf, readSelect, Recent, render, retick } from "./markup.js";
 import { Poller } from "./poller.js";
 import { activationOf, actorOf, addressOf, contextOf, filesOf, isPrivate, nameOf, quotedOf, REACTIONS, readText, type TCallback, type TMessage, type TUpdate, type TUser } from "./wire.js";
@@ -9,8 +9,8 @@ export const CAPABILITIES: ImCapabilities = {
   edit: true, buttons: true, inboundFiles: true, outboundFiles: true,
   // One size for both ways: a bot downloads up to 20 MB (it could upload 50); larger files go as a link.
   maxTextLength: 4096, maxFileBytes: 20 * 1024 * 1024,
-  // A group reply quotes the message that asked; a forum topic is answered in that topic.
-  threads: false, reactions: true, typing: true, stream: "native",
+  // A group reply quotes the message that asked; a forum topic is answered in that topic, and the bot opens one per ticket being worked (`topics`).
+  threads: false, topics: true, reactions: true, typing: true, stream: "native",
   select: true, multiSelect: true, textInput: true, cards: true, cardUpdate: true,
   nativeCommands: true, ephemeral: false, markdown: "telegram-html",
   // About one message a second in a chat, short bursts allowed; groups get their 20 a minute paced in the adapter.
@@ -26,6 +26,7 @@ const PHOTO_BYTES = 10 * 1024 * 1024;
 /** The most an attachment reference may claim; a larger file is named in the text instead. */
 const REF_BYTES = 32 * 1024 * 1024;
 const TOKEN = /^\d+:[\w-]{20,}$/;
+const TOPIC_NAME = 128;
 
 /** Changes to one draft id animate; the operation names it, so a retried start keeps it. */
 const draftOf = (operationId: string) => (createHash("sha256").update(operationId).digest().readUInt32BE(0) % 2_147_483_646) + 1;
@@ -62,6 +63,8 @@ export async function openTelegram(connectionId: string, io: IO, opts: TelegramO
   const reacted = new Recent<string>(500);
   const paced = new Map<string, number[]>();
   const streams = new Map<string, { text: string; draft?: number }>();
+  /** What each topic the bot opened was last given; not known after a restart, when Telegram's "not modified" settles it. */
+  const topics = new Recent<{ name?: string; closed?: boolean }>(500);
   let drafts = true;
 
   const receive = (event: ImInbound) => io.receive(event).then(() => {}, () => {});
@@ -363,6 +366,37 @@ export async function openTelegram(connectionId: string, io: IO, opts: TelegramO
         if (messageId.startsWith("draft:")) return { messageId: await post(operationId, address, undefined, undefined, content) };
         await edit(chat, messageId, content);
         return { messageId };
+      }
+    },
+
+    topics: {
+      async open({ address, title }) {
+        const chat = address.conversationId;
+        if (isPrivate(chat)) throw new TelegramError("A direct chat has no topics", "permanent");
+        const name = clip(title, TOPIC_NAME);
+        pace(chat);
+        // Not idempotent: a topic whose answer was lost may exist, so that is uncertain rather than opened twice.
+        const topic = await api.call<{ message_thread_id: number }>("createForumTopic", { chat_id: Number(chat), name });
+        topics.set(`${chat}:${topic.message_thread_id}`, { name, closed: false });
+        return { topicId: String(topic.message_thread_id) };
+      },
+
+      async update({ address, title, closed }) {
+        const chat = address.conversationId;
+        const key = `${chat}:${address.topicId}`;
+        const known = topics.get(key) ?? {};
+        const name = clip(title, TOPIC_NAME);
+        /** One change, remembered once it is made, so a retry sends only what is left. */
+        const step = async (method: string, extra: Record<string, unknown>, made: { name?: string; closed?: boolean }) => {
+          pace(chat);
+          try { await api.call(method, { chat_id: Number(chat), message_thread_id: Number(address.topicId), ...extra }, { idempotent: true }); }
+          catch (e) { if (!untouched(e)) throw e; }
+          topics.set(key, Object.assign(known, made));
+        };
+        // Opened again before it is renamed, renamed before it is closed.
+        if (!closed && known.closed !== false) await step("reopenForumTopic", {}, { closed: false });
+        if (known.name !== name) await step("editForumTopic", { name }, { name });
+        if (closed && known.closed !== true) await step("closeForumTopic", {}, { closed: true });
       }
     },
 

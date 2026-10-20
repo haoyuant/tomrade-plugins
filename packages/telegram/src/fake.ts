@@ -41,8 +41,8 @@ type Waiting = { end(res: Response): void; fail(e: unknown): void };
 /**
  * The Bot API in memory: getUpdates long polling with offsets that drop what
  * they pass, a webhook and a second reader that conflict with it, messages,
- * edits, drafts, reactions, callback answers, commands, files both ways, and
- * flood control. For tests and the plugin's own scenario; never shipped as the adapter.
+ * edits, drafts, reactions, callback answers, commands, files both ways, forum
+ * topics, and flood control. For tests and the plugin's own scenario; never shipped as the adapter.
  */
 export class FakeTelegram {
   readonly token = "123456789:AAFakeTokenForTomradeTests_0123456789";
@@ -62,6 +62,8 @@ export class FakeTelegram {
   readonly answers = new Map<string, { pressed: number; at?: number; text?: string }>();
   readonly files = new Map<string, { bytes: Uint8Array; size: number }>();
   readonly forums = new Set<number>();
+  /** Forum topics by chat and thread id. */
+  readonly topics = new Map<string, { name: string; closed: boolean }>();
   commands: { command: string; description: string }[] | null = null;
   webhook = "";
   /** When set, sendMessageDraft is not known, as on an older Bot API. */
@@ -138,6 +140,7 @@ export class FakeTelegram {
     this.forums.add(chat);
     const id = ++this.ids;
     this.messages.set(this.key(chat, id), { message_id: id, message_thread_id: id, is_topic_message: true, from: by, chat: this.chatOf(chat), date: now(), forum_topic_created: { name } });
+    this.topics.set(this.key(chat, id), { name, closed: false });
     return id;
   }
 
@@ -290,6 +293,23 @@ export class FakeTelegram {
         if (!f) return refuse(400, "Bad Request: invalid file_id");
         if (f.size > 20 * 1024 * 1024) return refuse(400, "Bad Request: file is too big");
         return ok({ file_id: params.file_id, file_unique_id: `u-${String(params.file_id)}`, file_size: f.size, file_path: `files/${String(params.file_id)}` });
+      }
+      case "createForumTopic": {
+        if (!(chat < 0)) return refuse(400, "Bad Request: chat not found");
+        if (!this.forums.has(chat)) return refuse(400, "Bad Request: the chat is not a forum");
+        const name = String(params.name ?? "");
+        if (!name || name.length > 128) return refuse(400, "Bad Request: TOPIC_TITLE_INVALID");
+        const id = this.topic(chat, name, this.bot);
+        return ok({ message_thread_id: id, name, icon_color: 7322096 });
+      }
+      case "editForumTopic": case "closeForumTopic": case "reopenForumTopic": {
+        const topic = this.topics.get(this.key(chat, Number(params.message_thread_id)));
+        if (!topic) return refuse(400, "Bad Request: TOPIC_ID_INVALID");
+        const change = method === "editForumTopic" ? { name: String(params.name ?? "") } : { closed: method === "closeForumTopic" };
+        if (change.name !== undefined && (!change.name || change.name.length > 128)) return refuse(400, "Bad Request: TOPIC_TITLE_INVALID");
+        if (Object.entries(change).every(([k, v]) => topic[k as keyof typeof topic] === v)) return refuse(400, "Bad Request: TOPIC_NOT_MODIFIED");
+        Object.assign(topic, change);
+        return ok(true);
       }
       case "deleteMessage":
         return this.messages.delete(this.key(chat, Number(params.message_id))) ? ok(true) : refuse(400, "Bad Request: message to delete not found");
