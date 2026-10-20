@@ -1,0 +1,34 @@
+{
+  "id": "tomrade/cursor",
+  "version": "0.1.0",
+  "title": "Cursor",
+  "description": "Cursor's CLI (cursor-agent) as a coding agent in Tomrade: a ticket goes to cursor-agent in a terminal, which reaches Tomrade through its own connection in ~/.cursor/mcp.json, and its sign-in answers Tomrade's background calls.",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Tomrade"
+  },
+  "repository": "https://github.com/haoyuant/tomrade-plugins",
+  "engines": {
+    "sdk": "^0.2.18"
+  },
+  "main": "dist/index.js",
+  "icon": "icon.svg",
+  "permissions": {
+    "network": [],
+    "fs": "any",
+    "exec": true,
+    "why": {
+      "fs": "Connecting Cursor adds a tomrade server to ~/.cursor/mcp.json (your other servers are kept), and a background call runs in a folder of its own under the temporary directory.",
+      "exec": "Runs your own `cursor-agent` command: `cursor-agent status` to see whether it is signed in, and `cursor-agent -p` in ask mode for background calls."
+    }
+  },
+  "inject": [
+    "agent"
+  ],
+  "optional": [],
+  "contributes": {
+    "localAgents": [
+      "cursor"
+    ]
+  }
+}
