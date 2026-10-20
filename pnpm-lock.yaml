@@ -24,6 +24,12 @@ importers:
         specifier: ^3.2.7
         version: 3.2.7(@types/node@26.6.5)(yaml@2.9.1)
 
+  packages/antigravity:
+    devDependencies:
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
   packages/azure-openai: {}
 
   packages/bedrock: {}

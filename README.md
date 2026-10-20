@@ -26,6 +26,7 @@ Browse and installs them from there.
 | `packages/dsh` | `tomrade/dsh` | DeepSeek Harness (dsh) as a local coding agent: conversations and tickets over ACP, found inside its desktop app too, a ticket in a terminal, its sign-in lent to the worker |
 | `packages/opencode` | `tomrade/opencode` | OpenCode as a local coding agent: conversations and tickets over ACP, a ticket in a terminal, its own sessions connected, its providers lent to the worker |
 | `packages/workbuddy` | `tomrade/workbuddy` | WorkBuddy (Tencent) as a local coding agent through its CodeBuddy CLI or the WorkBuddy app's copy: conversations and tickets over ACP, a ticket in a terminal, its own sessions connected, its sign-in lent to the worker |
+| `packages/antigravity` | `tomrade/antigravity` | Antigravity CLI (`agy`) from Google as a local coding agent: a ticket in a terminal, its own sessions connected, its sign-in lent to the worker |
 | `packages/pomodoro` | `tomrade/pomodoro` | Focus and break timer in the status bar, with a desktop widget and alerts; installed once on every machine |
 
 Every plugin here meets [the official standard](STANDARDS.md). The standard

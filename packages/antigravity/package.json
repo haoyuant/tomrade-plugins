@@ -1,0 +1,18 @@
+{
+  "name": "@tomrade-plugins/antigravity",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "description": "Antigravity CLI (agy) as a coding agent Tomrade hands tickets to in a terminal, its sessions connected to Tomrade and its sign-in lent to the worker",
+  "scripts": {
+    "build": "tomrade-plugin build",
+    "dev": "tomrade-plugin dev",
+    "test": "tomrade-plugin test",
+    "check": "tomrade-plugin check --official",
+    "pack": "tomrade-plugin pack",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "zod": "4.4.3"
+  }
+}
