@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { ImAdapter, ImAdapterSession, ImAddress, ImCapabilities, ImContent, ImContextMessage, ImDelivery, ImInbound } from "@tomradex/plugin-sdk";
 import { Api, BASE, type Domain, FeishuError, net, NO_SCOPE, type Net } from "./api.js";
-import { cardOf, controlOf, STREAM_ELEMENT } from "./card.js";
+import { cardOf, controlOf, STREAM_ELEMENT, topicCard } from "./card.js";
 import { LongConnection } from "./gateway.js";
 import { addressOf, fileId, menuCommand, parseFileId, parseMessage, REACTIONS, type FCardAction, type FEnvelope, type FileRef, type FMenu, type FMessageEvent, type FRecalled } from "./wire.js";
 
@@ -10,7 +10,8 @@ export const CAPABILITIES: ImCapabilities = {
   // A card holds 30 KB of JSON; 6000 characters of Chinese stay well inside it.
   maxTextLength: 6000, maxFileBytes: 30 * 1024 * 1024,
   // A group is one conversation and replies quote the message that asked; a message written in a topic is answered in it.
-  threads: false, reactions: true, typing: false, stream: "native",
+  // The bot opens a topic per ticket being worked in a group (`topics`).
+  threads: false, topics: true, reactions: true, typing: false, stream: "native",
   select: true, multiSelect: true, textInput: true, cards: true, cardUpdate: true,
   nativeCommands: false, ephemeral: false, markdown: "lark",
   // Feishu allows a bot five messages a second in one chat.
@@ -69,6 +70,8 @@ export async function openFeishu(connectionId: string, io: IO, opts: FeishuOptio
   const known = new Recent<{ actor: string; address: ImAddress }>(1000);
   /** A person's direct chat, learned from their messages, for the bot menu (which names no chat). */
   const directChats = new Recent<string>(500);
+  /** Each chat's mode (`p2p`, `group`, `topic`), learned from its messages or asked for, so no topic opens in a direct chat. */
+  const chatModes = new Recent<string | null>(500);
   const names = new Recent<string | null>(500);
   let namesAllowed = true;
   const contexts = new Recent<ImContextMessage | null>(200);
@@ -146,6 +149,7 @@ export async function openFeishu(connectionId: string, io: IO, opts: FeishuOptio
     if (sender.sender_type !== "user" || !actorId) return;
     const dm = m.chat_type === "p2p";
     if (dm) directChats.set(actorId, m.chat_id);
+    if (m.chat_type) chatModes.set(m.chat_id, m.chat_type);
     const parsed = parseMessage(m, botOpenId);
     const address = addressOf(env.header.tenant_key ?? sender.tenant_key ?? "", m);
     const replied = (!!m.parent_id && sent.has(m.parent_id)) || (!!address.topicId && (sent.has(address.topicId) || topics.has(address.topicId)));
@@ -277,6 +281,20 @@ export async function openFeishu(connectionId: string, io: IO, opts: FeishuOptio
     }
   };
 
+  /** A chat's mode; null when Feishu will not say (no chat scope), and the IM layer, which opens topics only in groups, is taken at its word. */
+  const chatModeOf = async (chat: string): Promise<string | null> => {
+    if (chatModes.has(chat)) return chatModes.get(chat)!;
+    let mode: string | null = null;
+    try {
+      const r = await api.call<{ data?: { chat_mode?: string } }>("GET", `/open-apis/im/v1/chats/${encodeURIComponent(chat)}`);
+      mode = r.data?.chat_mode ?? null;
+    } catch (e) {
+      if (!(e instanceof FeishuError) || e.disposition !== "permanent") throw e;
+    }
+    chatModes.set(chat, mode);
+    return mode;
+  };
+
   return {
     identity: { id: botOpenId || appId, ...(bot.app_name ? { name: bot.app_name } : {}) },
 
@@ -314,6 +332,25 @@ export async function openFeishu(connectionId: string, io: IO, opts: FeishuOptio
       if (previous) await api.call("DELETE", `/open-apis/im/v1/messages/${encodeURIComponent(messageId)}/reactions/${encodeURIComponent(previous.id)}`).catch(() => null);
       const r = await api.call<{ data: { reaction_id: string } }>("POST", `/open-apis/im/v1/messages/${encodeURIComponent(messageId)}/reactions`, { reaction_type: { emoji_type: emoji } });
       reacted.set(messageId, { emoji, id: r.data.reaction_id });
+    },
+
+    topics: {
+      async open({ operationId, address, title }) {
+        if (await chatModeOf(address.conversationId) === "p2p") throw new FeishuError("A direct chat has no topics", "permanent");
+        // The topic itself starts with the first reply in its thread; until then it is this card in the group.
+        const r = await api.call<{ data: { message_id: string } }>("POST", "/open-apis/im/v1/messages?receive_id_type=chat_id", {
+          receive_id: address.conversationId, msg_type: "interactive", content: JSON.stringify(topicCard(title, false)), uuid: uuidOf(operationId, "topic")
+        });
+        const id = r.data.message_id;
+        sent.set(id, title);
+        topics.set(id, true);
+        return { topicId: id };
+      },
+
+      async update({ address, title, closed }) {
+        await api.call("PATCH", `/open-apis/im/v1/messages/${encodeURIComponent(address.topicId)}`, { content: JSON.stringify(topicCard(title, closed)) });
+        sent.set(address.topicId, title);
+      }
     },
 
     stream: {

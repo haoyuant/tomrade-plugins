@@ -17,8 +17,8 @@ const json = (value: unknown, status = 200, headers: Record<string, string> = {}
 /**
  * Feishu in memory: the long-connection endpoint and a socket speaking its
  * frames (ping, pong, events in one or several parts, acknowledgements), and
- * REST routes for tokens, messages, replies, reactions, files, cards and
- * CardKit. For tests and the plugin's own scenario; never shipped as the adapter.
+ * REST routes for tokens, messages, replies, reactions, files, cards,
+ * chat info and CardKit. For tests and the plugin's own scenario; never shipped as the adapter.
  */
 export class FakeFeishu {
   readonly appId = "cli_a1b2c3d4e5f60718";
@@ -34,6 +34,8 @@ export class FakeFeishu {
   readonly answers = new Map<string, { code: number; data?: unknown; at: number }>();
   readonly users = new Map<string, string>();
   readonly files = new Map<string, { bytes: Uint8Array; type: string }>();
+  /** Each chat's mode as the chat API tells it; a chat a person wrote in is added. */
+  readonly chats = new Map<string, "p2p" | "group" | "topic">();
   /** Seconds, as Feishu sends it. */
   pingInterval = 120;
   /** When set, pings go unanswered, as on a dead connection. */
@@ -42,6 +44,8 @@ export class FakeFeishu {
   noCardkit = false;
   /** When set, the app may not read contacts. */
   noContact = false;
+  /** When set, the app may not read chat info. */
+  noChatInfo = false;
   /** Pings received across connections. */
   pings = 0;
   /** Event ids sent, so a test can tell when one is answered. */
@@ -96,6 +100,7 @@ export class FakeFeishu {
     const m: FakeMessage = { id, chat: o.chat, chatType, sender: o.sender, msgType: o.type ?? "text", content: JSON.stringify(content),
       ...(o.parent ? { parent: o.parent } : {}), ...(o.root ? { root: o.root } : {}), ...(o.thread ? { thread: o.thread } : {}), ...(o.mention ? { mentionsBot: true } : {}) };
     this.messages.set(id, m);
+    if (!this.chats.has(o.chat)) this.chats.set(o.chat, chatType);
     const event = {
       sender: { sender_id: { open_id: o.sender }, sender_type: "user", tenant_key: this.tenant },
       message: { message_id: id, chat_id: o.chat, chat_type: chatType, message_type: m.msgType, content: m.content, create_time: String(Date.now()),
@@ -232,6 +237,11 @@ export class FakeFeishu {
       if (this.noContact) return json({ code: 99991672, msg: "Access denied. One of the following scopes is required: [contact:user.base:readonly]" }, 400);
       const name = this.users.get(decodeURIComponent(m[1]!));
       return name ? json({ code: 0, data: { user: { name } } }) : json({ code: 41050, msg: "no user authority" }, 400);
+    }
+    if (method === "GET" && (m = /^\/open-apis\/im\/v1\/chats\/([^/]+)$/.exec(p))) {
+      if (this.noChatInfo) return json({ code: 99991672, msg: "Access denied. One of the following scopes is required: [im:chat:readonly]" }, 400);
+      const mode = this.chats.get(decodeURIComponent(m[1]!));
+      return mode ? json({ code: 0, data: { chat_mode: mode, chat_type: mode === "p2p" ? "" : "private" } }) : json({ code: 232011, msg: "operator not in the chat" }, 400);
     }
     if (p.startsWith("/open-apis/cardkit/v1/cards")) return this.cardkit(method, p, body);
     return json({ code: 404, msg: "404 page not found" }, 404);

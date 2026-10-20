@@ -259,3 +259,106 @@ describe("limits", () => {
     expect(fake.reactions.map(r => [r.emoji, r.removed])).toEqual([["OnIt", true], ["DONE", false]]);
   });
 });
+
+describe("ticket topics", () => {
+  const TITLE = "TOM-42 · Doing · Fix the login page";
+  const group = { tenantId: "tenant-1", conversationId: "oc_g" };
+  const headerOf = (card: Record<string, unknown> | null) => (card as { header: { title: { content: string }; template: string } }).header;
+
+  it("opens with a card naming the ticket, whose message is the topic", async () => {
+    const fake = new FakeFeishu();
+    fake.chats.set("oc_g", "group");
+    const { session } = await connect(fake);
+    const { topicId } = await session.topics!.open({ operationId: "topic:1", address: group, title: TITLE });
+    const card = fake.posted("oc_g")[0]!;
+    expect(card).toMatchObject({ id: topicId, msgType: "interactive" });
+    expect(card).not.toHaveProperty("parent");
+    expect(headerOf(card.card)).toEqual({ title: { tag: "plain_text", content: TITLE }, template: "blue" });
+    expect(await session.topics!.open({ operationId: "topic:1", address: group, title: TITLE })).toEqual({ topicId });
+    expect(fake.posted("oc_g")).toHaveLength(1);
+    expect(fake.where("GET", /\/im\/v1\/chats\//)).toHaveLength(1);
+  });
+
+  it("replies into the topic's thread, and what people write there arrives with its topicId without an @", async () => {
+    const fake = new FakeFeishu();
+    const { session, events } = await connect(fake);
+    fake.message({ chat: "oc_g", chatType: "group", sender: "ou_ann", text: "hi", mention: true });
+    await until("the group message", () => events.length === 1);
+    const { topicId } = await session.topics!.open({ operationId: "topic:1", address: group, title: TITLE });
+    // The group's chat type came with its message; Feishu is not asked.
+    expect(fake.where("GET", /\/im\/v1\/chats\//)).toHaveLength(0);
+
+    fake.message({ chat: "oc_g", chatType: "group", sender: "ou_bob", text: "already?", thread: "omt_1", root: topicId });
+    await until("a message before the bot wrote there", () => events.length === 2);
+    expect(message(events)).toMatchObject({ activation: "reply", address: { ...group, topicId } });
+
+    const address = { ...group, topicId };
+    const { messageId } = await session.deliver(delivery({ chat: "oc_g", threadId: topicId, address, content: { text: "TOM-42 is now Doing" } }));
+    expect(fake.where("POST", new RegExp(`/messages/${topicId}/reply$`)).at(-1)!.body).toMatchObject({ reply_in_thread: true });
+    const reply = fake.messages.get(messageId)!;
+    expect(reply).toMatchObject({ parent: topicId, root: topicId, thread: expect.any(String) });
+
+    fake.message({ chat: "oc_g", chatType: "group", sender: "ou_ann", text: "what is left?", thread: reply.thread!, root: topicId });
+    await until("the topic's message", () => events.length === 3);
+    expect(message(events)).toMatchObject({ text: "what is left?", activation: "reply", address,
+      context: [{ role: "root", messageId: topicId, text: TITLE, author: { isBot: true } }] });
+    expect(message(events).address).toEqual(address);
+  });
+
+  it("renames the first card as the ticket moves, marks it closed once done, and opens it again", async () => {
+    const fake = new FakeFeishu();
+    fake.chats.set("oc_g", "group");
+    const { session } = await connect(fake);
+    const { topicId } = await session.topics!.open({ operationId: "topic:1", address: group, title: TITLE });
+    const address = { ...group, topicId };
+    const shown = () => headerOf(fake.cardOf(fake.messages.get(topicId)!));
+    await session.topics!.update({ address, title: "TOM-42 · Verifying · Fix the login page", closed: false });
+    expect(shown()).toMatchObject({ title: { content: "TOM-42 · Verifying · Fix the login page" }, template: "blue" });
+    await session.topics!.update({ address, title: "TOM-42 · Done · Fix the login page", closed: true });
+    expect(shown()).toMatchObject({ title: { content: "✅ TOM-42 · Done · Fix the login page" }, template: "green" });
+    await session.topics!.update({ address, title: "TOM-42 · Doing · Fix the login page", closed: false });
+    expect(shown()).toMatchObject({ title: { content: TITLE }, template: "blue" });
+    expect(fake.posted("oc_g")).toHaveLength(1);
+  });
+
+  it("opens no topic in a direct chat", async () => {
+    const fake = new FakeFeishu();
+    fake.chats.set("oc_dm2", "p2p");
+    const { session, events } = await connect(fake);
+    fake.message({ chat: "oc_dm", sender: "ou_ann", text: "hi" });
+    await until("the direct message", () => events.length === 1);
+    for (const chat of ["oc_dm", "oc_dm2"]) {
+      await expect(session.topics!.open({ operationId: `topic:${chat}`, address: { tenantId: "tenant-1", conversationId: chat }, title: TITLE }))
+        .rejects.toMatchObject({ disposition: "permanent", message: "A direct chat has no topics" });
+    }
+    expect(fake.posted("oc_dm")).toHaveLength(0);
+    expect(fake.posted("oc_dm2")).toHaveLength(0);
+  });
+
+  it("opens one anyway when Feishu will not say what the chat is", async () => {
+    const fake = new FakeFeishu();
+    fake.noChatInfo = true;
+    const { session } = await connect(fake);
+    const { topicId } = await session.topics!.open({ operationId: "topic:1", address: group, title: TITLE });
+    expect(fake.messages.get(topicId)).toMatchObject({ chat: "oc_g", msgType: "interactive" });
+  });
+
+  it("reports Feishu's refusals and rate limits as messages do", async () => {
+    const fake = new FakeFeishu();
+    fake.chats.set("oc_g", "group");
+    const { session } = await connect(fake);
+    const posting = (c: { method: string; path: string }) => c.method === "POST" && c.path === "/open-apis/im/v1/messages";
+    fake.failNext(posting, 429, 99991400, { retryAfter: 2 });
+    await expect(session.topics!.open({ operationId: "topic:1", address: group, title: TITLE })).rejects.toMatchObject({ disposition: "retryable", retryAfterMs: 2000 });
+    fake.failNext(posting, 400, 230002);
+    await expect(session.topics!.open({ operationId: "topic:1", address: group, title: TITLE })).rejects.toMatchObject({ disposition: "permanent" });
+    fake.failNext(c => c.method === "GET" && c.path.startsWith("/open-apis/im/v1/chats/"), 500, 1000);
+    await expect(session.topics!.open({ operationId: "topic:2", address: { ...group, conversationId: "oc_h" }, title: TITLE })).rejects.toMatchObject({ disposition: "retryable" });
+
+    const { topicId } = await session.topics!.open({ operationId: "topic:1", address: group, title: TITLE });
+    const editing = (c: { method: string; path: string }) => c.method === "PATCH" && c.path === `/open-apis/im/v1/messages/${topicId}`;
+    fake.failNext(editing, 429, 99991400, { retryAfter: 1 });
+    await expect(session.topics!.update({ address: { ...group, topicId }, title: TITLE, closed: true })).rejects.toMatchObject({ disposition: "retryable" });
+    await expect(session.topics!.update({ address: { ...group, topicId: "om_gone" }, title: TITLE, closed: true })).rejects.toMatchObject({ disposition: "permanent" });
+  });
+});
