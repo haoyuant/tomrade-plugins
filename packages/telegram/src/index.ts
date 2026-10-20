@@ -30,6 +30,8 @@ export default definePlugin({
             zh: "可选：想让助手被唤起时看到群里最近的讨论（路由里的「上下文窗口」），给 @BotFather 发 `/setprivacy`，选中这个机器人并选 **Disable** 关闭隐私模式，然后把机器人移出群再重新拉进来；Telegram 要在重新入群后才生效。" },
           { en: "In a group with **Topics** turned on, ask inside a topic and the answer stays in that topic; each topic is a conversation of its own.",
             zh: "在开启了 **话题（Topics）** 的群里，在某个话题里提问，回复也会留在这个话题里；每个话题各是一段独立的会话。" },
+          { en: "For a topic per ticket being worked (named with its status, closed once it is done), turn on **Topics** for the group and make the bot an admin with the **Manage Topics** right. Without them, a ticket's news stays in the group.",
+            zh: "想让每个正在处理的工单各有一个话题（标题带着工单状态，完成后自动关闭），请为群开启 **话题（Topics）**，并把机器人设为管理员、给它 **管理话题（Manage Topics）** 权限。否则工单的动态仍发在群里。" },
           { en: "Commands such as `/new`, `/stop`, `/status` and `/help` appear in the bot's menu once Tomrade is connected. Questions come with buttons; to answer in your own words, press ✍️ and reply.",
             zh: "连接后，`/new`、`/stop`、`/status`、`/help` 等指令会出现在机器人的菜单里。提问会带按钮；要用自己的话回答，点 ✍️ 后直接回复即可。" }
         ]

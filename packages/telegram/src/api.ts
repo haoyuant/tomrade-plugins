@@ -65,3 +65,5 @@ export class Api {
 export const unparsable = (e: unknown) => e instanceof TelegramError && e.disposition === "permanent" && /can't parse entities|unsupported start tag|end tag|unsupported url/i.test(e.description);
 /** An edit that changes nothing, which Telegram refuses; for this adapter it is done. */
 export const unchanged = (e: unknown) => e instanceof TelegramError && /message is not modified/i.test(e.description);
+/** A topic already named so, or already closed or open, which Telegram refuses; for this adapter it is done. */
+export const untouched = (e: unknown) => e instanceof TelegramError && e.disposition === "permanent" && /TOPIC_NOT_MODIFIED|not modified|already (closed|open)/i.test(e.description);
