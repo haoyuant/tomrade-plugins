@@ -1,6 +1,6 @@
 {
   "id": "tomrade/wecom",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "WeCom (企业微信)",
   "description": "Talk to a project's assistant from WeCom: direct chats and @mentions in groups with an intelligent bot, template-card buttons and choices for questions, and replies that stream into the chat. Connects from this computer over the bot's long connection; no public address or trusted IP is needed.",
   "license": "Apache-2.0",

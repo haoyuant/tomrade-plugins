@@ -27,7 +27,12 @@ const SETUP: ImAdapterSetup = {
     { en: "Commands are plain text (`/new`, `/stop`, `/status`, `/help`, …). Questions come as cards with buttons or choices; a free-text answer is `/answer` followed by the text the card names.",
       zh: "指令直接发文字（`/new`、`/stop`、`/status`、`/help` 等）。问题以带按钮或选项的卡片发来；需要自由回答时，按卡片提示发送 `/answer` 加回答。" }
   ],
-  docsUrl: DOCS
+  docsUrl: DOCS,
+  groupSteps: [
+    { en: "Add the bot to the group from the group's settings; it must have the group's members in its visible range.", zh: "在群设置里把机器人加进群；它的可见范围要包含群里的成员。" },
+    { en: "@mention the bot in the group and choose what it is for: Work, Status (news only) or Chat (talk to the assistant).", zh: "在群里 @机器人，选择这个群的用途：工作、状态（只推送消息）或聊天（和助手对话）。" },
+    { en: "WeCom groups have no topics: in a work group, each ticket's news is a line in the group, answering nobody in particular.", zh: "企业微信群没有话题：在工作群里，每个工单的动态在群里发一行。" }
+  ]
 };
 
 /** WeCom's intelligent bot over its long connection: direct chats and @mentions in groups, from this computer. */

@@ -52,7 +52,7 @@ export class FakeFeishu {
   readonly sentAt = new Map<string, number>();
   private ids = 1000;
   private tokens = new Set<string>();
-  private fail: { match: (c: FakeCall) => boolean; status: number; code: number; retryAfter?: number; times: number }[] = [];
+  private fail: { match: (c: FakeCall) => boolean; status: number; code: number; retryAfter?: number; msg?: string; times: number }[] = [];
 
   get live() { const s = this.sockets.at(-1); return s && s.readyState === 1 ? s : null; }
 
@@ -65,8 +65,8 @@ export class FakeFeishu {
   id(prefix: string) { return `${prefix}${++this.ids}`; }
 
   /** Answers the next calls `match` picks with `status` and Feishu's `code` (a 429 carries the reset header). */
-  failNext(match: (c: FakeCall) => boolean, status: number, code: number, opts: { retryAfter?: number; times?: number } = {}) {
-    this.fail.push({ match, status, code, ...(opts.retryAfter !== undefined ? { retryAfter: opts.retryAfter } : {}), times: opts.times ?? 1 });
+  failNext(match: (c: FakeCall) => boolean, status: number, code: number, opts: { retryAfter?: number; times?: number; msg?: string } = {}) {
+    this.fail.push({ match, status, code, ...(opts.retryAfter !== undefined ? { retryAfter: opts.retryAfter } : {}), ...(opts.msg ? { msg: opts.msg } : {}), times: opts.times ?? 1 });
   }
 
   /** Every token handed out so far stops working, as when Feishu rotates them. */
@@ -191,7 +191,7 @@ export class FakeFeishu {
     const failing = this.fail.find(f => f.times > 0 && f.match(call));
     if (failing) {
       failing.times--;
-      return json({ code: failing.code, msg: "failure" }, failing.status, failing.retryAfter !== undefined ? { "x-ogw-ratelimit-reset": String(failing.retryAfter) } : {});
+      return json({ code: failing.code, msg: failing.msg ?? "failure" }, failing.status, failing.retryAfter !== undefined ? { "x-ogw-ratelimit-reset": String(failing.retryAfter) } : {});
     }
 
     let m: RegExpExecArray | null;

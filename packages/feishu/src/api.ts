@@ -17,9 +17,13 @@ const STALE_TOKEN = new Set([99991661, 99991663, 99991664, 99991665, 99991668]);
 const LIMITED = new Set([99991400, 230020]);
 /** The app has not been granted the scope, or not published with it. */
 export const NO_SCOPE = new Set([99991672, 99991679]);
+/** The bot is not in the chat; it lacks the right for this in the chat. */
+export const NOT_IN_CHAT = 230002;
+export const NO_RIGHT = 230027;
 
 export class FeishuError extends ImDeliveryError {
-  constructor(message: string, disposition: "retryable" | "uncertain" | "permanent", readonly code?: number, retryAfterMs?: number) {
+  /** `msg`: Feishu's own words for a refusal, which name the scopes a missing one needs. */
+  constructor(message: string, disposition: "retryable" | "uncertain" | "permanent", readonly code?: number, retryAfterMs?: number, readonly msg?: string) {
     super(message, disposition, retryAfterMs);
   }
 }
@@ -77,7 +81,7 @@ export class Api {
         throw new FeishuError("Feishu rate limit", "retryable", code, Number.isFinite(reset) && reset > 0 ? reset * 1000 : 1000);
       }
       if (res.status >= 500) throw new FeishuError(`Feishu error ${res.status}`, "retryable", code);
-      throw new FeishuError(`Feishu refused (${code ?? res.status}${answer?.msg ? `: ${answer.msg}` : ""})`, "permanent", code);
+      throw new FeishuError(`Feishu refused (${code ?? res.status}${answer?.msg ? `: ${answer.msg}` : ""})`, "permanent", code, undefined, answer?.msg);
     }
   }
 

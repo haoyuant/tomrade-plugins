@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import type { ImAdapter, ImAdapterSession, ImAddress, ImCapabilities, ImContent, ImContextMessage, ImDelivery, ImInbound } from "@tomradex/plugin-sdk";
-import { Api, BASE, type Domain, FeishuError, net, NO_SCOPE, type Net } from "./api.js";
+import type { ImAdapter, ImAdapterSession, ImAddress, ImCapabilities, ImContent, ImContextMessage, ImDelivery, ImInbound, ImLink } from "@tomradex/plugin-sdk";
+import { Api, BASE, type Domain, FeishuError, net, NO_RIGHT, NO_SCOPE, NOT_IN_CHAT, type Net } from "./api.js";
 import { cardOf, controlOf, STREAM_ELEMENT, topicCard } from "./card.js";
 import { LongConnection } from "./gateway.js";
 import { addressOf, fileId, menuCommand, parseFileId, parseMessage, REACTIONS, type FCardAction, type FEnvelope, type FileRef, type FMenu, type FMessageEvent, type FRecalled } from "./wire.js";
@@ -295,10 +295,51 @@ export async function openFeishu(connectionId: string, io: IO, opts: FeishuOptio
     return mode;
   };
 
+  const lark = opts.domain === "lark";
+  const app = lark ? "Lark" : "Feishu";
+  const appZh = lark ? "Lark" : "飞书";
+  /** Where the app's permissions are granted. */
+  const permissionsPage: ImLink = { label: { en: "Open the developer console", zh: lark ? "打开开发者后台" : "打开开放平台" },
+    url: `${lark ? "https://open.larksuite.com/app" : "https://open.feishu.cn/app"}/${encodeURIComponent(appId)}/auth` };
+  /** Causes told per chat, so each is said once until a call there works again. */
+  const told = new Set<string>();
+  /** What Feishu's refusal means for the person, when it is one they can fix; `scopes` as Feishu named them. */
+  const refused = (code: number | undefined, scopes: string | undefined): { en: string; zh: string } | undefined => {
+    if (code === NOT_IN_CHAT) return { en: "The bot is no longer in this group, so Tomrade can't post here. Add it back under the group's settings → Bots.",
+      zh: "机器人已经不在这个群里，Tomrade 无法在这里发消息。请在群设置 → 群机器人里把它加回来。" };
+    if (code !== undefined && NO_SCOPE.has(code)) return { en: `${app} refused this: the app is missing a permission${scopes ? ` (${scopes})` : ""}. Add it under Permissions & Scopes in the developer console, then publish a new version.`,
+      zh: `${appZh}拒绝了这个操作：应用缺少权限${scopes ? `（${scopes}）` : ""}。请在开发者后台的「权限管理」里开通，然后发布新版本。` };
+    if (code === NO_RIGHT) return { en: `${app} says the bot may not do this in this group: check who may send messages in the group's settings, and the app's permissions.`,
+      zh: `${appZh}表示机器人在这个群里没有权限这样做：请检查群设置里谁可以发言，以及应用的权限。` };
+    return undefined;
+  };
+  /**
+   * A call in a group, saying once when Feishu refused it because the bot left the group or the app lacks a
+   * permission; the refusal still reaches the IM layer.
+   */
+  const guarded = async <T>(address: ImAddress, work: () => Promise<T>): Promise<T> => {
+    const chat = address.conversationId;
+    try {
+      const result = await work();
+      for (const key of [...told]) if (key.startsWith(`feishu:${chat}:`)) { told.delete(key); io.clearNotice?.(key); }
+      return result;
+    } catch (e) {
+      if (e instanceof FeishuError && e.disposition === "permanent" && chatModes.get(chat) !== "p2p") {
+        const text = refused(e.code, /\[([^\]]+)\]/.exec(e.msg ?? "")?.[1]?.trim());
+        const key = `feishu:${chat}:${e.code}`;
+        if (text && !told.has(key)) {
+          told.add(key);
+          io.notice?.({ key, text, address: { tenantId: address.tenantId, conversationId: chat }, ...(e.code !== undefined && NO_SCOPE.has(e.code) ? { link: permissionsPage } : {}) });
+        }
+      }
+      throw e;
+    }
+  };
+
   return {
     identity: { id: botOpenId || appId, ...(bot.app_name ? { name: bot.app_name } : {}) },
 
-    async deliver(d: ImDelivery) {
+    deliver: (d: ImDelivery) => guarded(d.address, async () => {
       const topic = d.address.topicId;
       if (d.replaceMessageId) {
         await update(d.replaceMessageId, d.content, topic);
@@ -313,7 +354,7 @@ export async function openFeishu(connectionId: string, io: IO, opts: FeishuOptio
         first ??= id;
       }
       return { messageId: first! };
-    },
+    }),
 
     async download(ref) {
       const cached = fetched.get(ref.id);
@@ -338,9 +379,9 @@ export async function openFeishu(connectionId: string, io: IO, opts: FeishuOptio
       async open({ operationId, address, title }) {
         if (await chatModeOf(address.conversationId) === "p2p") throw new FeishuError("A direct chat has no topics", "permanent");
         // The topic itself starts with the first reply in its thread; until then it is this card in the group.
-        const r = await api.call<{ data: { message_id: string } }>("POST", "/open-apis/im/v1/messages?receive_id_type=chat_id", {
+        const r = await guarded(address, () => api.call<{ data: { message_id: string } }>("POST", "/open-apis/im/v1/messages?receive_id_type=chat_id", {
           receive_id: address.conversationId, msg_type: "interactive", content: JSON.stringify(topicCard(title, false)), uuid: uuidOf(operationId, "topic")
-        });
+        }));
         const id = r.data.message_id;
         sent.set(id, title);
         topics.set(id, true);
