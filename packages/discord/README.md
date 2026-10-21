@@ -4,6 +4,26 @@ Talk to a Tomrade project's assistant from Discord: direct messages, @mentions a
 
 Set it up in Settings → IM → Connect a bot → Discord. The wizard lists the Developer Portal steps; only the bot token is needed, and it is stored encrypted on this computer. Privileged intents stay off: a mention or a direct message carries its text without Message Content. Once connected, the connection shows **Add the bot to a server**: a link that adds the bot with exactly the permissions it needs (View Channels, Send Messages, Send Messages in Threads, Create Public Threads, Manage Threads, Read Message History, Embed Links, Attach Files, Add Reactions, and optionally Manage Channels for `/tomrade setup`) and the `/tomrade` command. Open it again to re-authorize a bot added before it needed a permission.
 
+## Use it in a server
+
+1. **Connect.** In Settings → IM → Connect a bot → Discord, paste the bot token from the Developer Portal (create an application, then **Bot → Reset Token**) and save. That is all the portal needs.
+2. **Add the bot to your server.** The connection now shows **Add the bot to a server**: open it, pick the server, authorize. It asks for exactly the permissions below.
+3. **Pair.** Make a pairing code in Settings → IM and send it to the bot in a direct message; confirm on the desktop. Until then the bot answers no one.
+4. **Set up the channels.** In the server, run **`/tomrade setup`** (add `project:` when you have several). It creates a **Tomrade** category with `#tomrade-work`, `#tomrade-status` and `#tomrade-chat` and allows them. Or @mention the bot in a channel of your own and choose **Work**, **Status** or **Chat**. A channel hears nothing until it is allowed one of these ways, and your direct chat never gets ticket threads.
+5. **Work.** Move a ticket to Doing or Verifying: it gets a thread in the work channel, renamed as it moves and archived when it is done. The status channel gets ticket and code news; the chat channel answers when you @mention or reply to the bot.
+
+What each feature needs:
+
+| Feature | Permissions |
+|---|---|
+| Answering in channels, cards, the status and chat channels | View Channels, Send Messages, Read Message History, Embed Links |
+| A thread per ticket | Create Public Threads, Send Messages in Threads, Manage Threads (rename and archive); in a forum or media channel a post, which needs Send Messages |
+| Files | Attach Files |
+| 👀 / ✅ / ❌ on your messages | Add Reactions |
+| `/tomrade setup` | Manage Channels (optional; untick it when adding the bot if you create the channels yourself) |
+
+A permission that is missing is said once in the channel where it bit, naming it, with the install link to add the bot again; Settings → IM shows it on the connection too.
+
 What the adapter does:
 
 - Gateway with heartbeats; a dropped or silent connection resumes and Discord replays what was missed (the IM layer keeps each event once).
