@@ -105,6 +105,7 @@ export async function setUp(io: IO, rest: Rest, i: DInteraction, actorId: string
     const name = (kind: Kind) => shared ? `${w.names[kind]}-${slug(project.name)}` : w.names[kind];
     let category = channels.find(c => c.type === CATEGORY && c.name.toLowerCase() === "tomrade");
     const ids = {} as Record<Kind, string>;
+    const names = {} as Record<Kind, string>;
     for (const kind of KINDS) {
       let channel = channels.find(c => { const m = markOf(c.topic); return !!m && m[1] === project.id && m[2] === kind; })
         ?? channels.find(c => c.type === TEXT && c.name === name(kind));
@@ -115,8 +116,9 @@ export async function setUp(io: IO, rest: Rest, i: DInteraction, actorId: string
         learn(channel);
       }
       ids[kind] = channel.id;
+      names[kind] = channel.name;
     }
-    for (const kind of KINDS) io.allow({ actorId, address: { tenantId: guild, conversationId: ids[kind] }, kind, projectId: project.id });
+    for (const kind of KINDS) io.allow({ actorId, address: { tenantId: guild, conversationId: ids[kind] }, kind, projectId: project.id, name: `#${names[kind]}` });
     return w.done(project.name, ids);
   } catch (e) {
     if ((e as { code?: unknown }).code === MISSING_PERMISSIONS) return w.manage(install);

@@ -672,3 +672,13 @@ describe("using it in a group", () => {
     expect(notices).toEqual([]);
   });
 });
+
+describe("naming conversations", () => {
+  it("names a group by its title and a direct chat by the person in it", async () => {
+    const { fake, session } = await connect();
+    expect(await session.describe!({ tenantId: "telegram", conversationId: String(GROUP) })).toEqual({ name: "Team" });
+    expect(await session.describe!({ tenantId: "telegram", conversationId: String(fake.ann.id) })).toEqual({ name: "Ann Lee" });
+    expect(await session.describe!({ tenantId: "telegram", conversationId: "4242" })).toBeNull();
+  });
+});
+

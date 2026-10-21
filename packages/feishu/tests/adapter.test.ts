@@ -401,3 +401,16 @@ describe("using it in a group", () => {
     }
   });
 });
+
+describe("naming conversations", () => {
+  it("names a group by its name, and nothing when Feishu gives none", async () => {
+    const { fake, session } = await connect();
+    fake.chats.set("oc_g", "group");
+    fake.chatNames.set("oc_g", "Tomrade 工作群");
+    fake.chats.set("oc_dm", "p2p");
+    expect(await session.describe!({ tenantId: "tenant-1", conversationId: "oc_g" })).toEqual({ name: "Tomrade 工作群" });
+    expect(await session.describe!({ tenantId: "tenant-1", conversationId: "oc_dm" })).toBeNull();
+    expect(await session.describe!({ tenantId: "tenant-1", conversationId: "oc_unknown" })).toBeNull();
+  });
+});
+

@@ -1,6 +1,6 @@
 {
   "id": "tomrade/telegram",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "title": "Telegram",
   "description": "Talk to a project's assistant from Telegram: direct chats, @mentions, replies and commands in groups, forum topics, buttons for questions and choices, and replies that stream as drafts. Connects from this computer by polling the Bot API.",
   "license": "Apache-2.0",

@@ -328,6 +328,13 @@ export async function openTelegram(connectionId: string, io: IO, opts: TelegramO
     identity: { id: String(me.id), name: me.username ? `${me.first_name} (@${me.username})` : me.first_name },
     ...(link ? { links: [link] } : {}),
 
+    /** A group by its title; a direct chat by the person in it. */
+    async describe(address) {
+      const chat = await api.call<{ title?: string; first_name?: string; last_name?: string }>("getChat", { chat_id: Number(address.conversationId) }, { idempotent: true }).catch(() => null);
+      const name = chat?.title || [chat?.first_name, chat?.last_name].filter(Boolean).join(" ");
+      return name ? { name } : null;
+    },
+
     async deliver(d) {
       // A draft is no message: a reply still a draft at a restart is posted anew.
       if (d.replaceMessageId && !d.replaceMessageId.startsWith("draft:")) {

@@ -29,6 +29,8 @@ export class FakeDiscord {
   readonly messages = new Map<string, { channel: string; body: Record<string, unknown> }>();
   /** Channel types the REST answers with; a channel left out is a text channel. */
   readonly channelTypes = new Map<string, number>();
+  /** Direct chats by channel id, with the person in each. */
+  readonly dms = new Map<string, { id: string; name: string }>();
   /** Each server's channels and categories, as `GET /guilds/:id/channels` lists them. */
   readonly guildChannels = new Map<string, { id: string; type: number; name: string; parent_id?: string | null; topic?: string | null }[]>();
   /** Threads the bot opened or edited: their parent and last edit. */
@@ -143,7 +145,11 @@ export class FakeDiscord {
       return json({ id: m[2], channel_id: m[1] });
     }
     if (method === "PATCH" && /^\/webhooks\/\d+\/[^/]+\/messages\/@original$/.test(path)) return json({ id: this.id() });
-    if (method === "GET" && (m = /^\/channels\/(\d+)$/.exec(path))) return json({ id: m[1], type: this.channelTypes.get(m[1]!) ?? 0 });
+    if (method === "GET" && (m = /^\/channels\/(\d+)$/.exec(path))) {
+      const known = [...this.guildChannels.values()].flat().find(c => c.id === m![1]);
+      const dm = this.dms.get(m[1]!);
+      return json({ id: m[1], type: dm ? 1 : this.channelTypes.get(m[1]!) ?? known?.type ?? 0, ...(known ? { name: known.name } : {}), ...(dm ? { recipients: [this.user(dm.id, dm.name)] } : {}) });
+    }
     if (method === "GET" && (m = /^\/guilds\/(\d+)\/channels$/.exec(path))) return json(this.guildChannels.get(m[1]!) ?? []);
     if (method === "POST" && (m = /^\/guilds\/(\d+)\/channels$/.exec(path))) {
       const channel = { id: this.id(), type: Number(body?.type ?? 0), name: String(body?.name), parent_id: (body?.parent_id as string | undefined) ?? null, topic: (body?.topic as string | undefined) ?? null };

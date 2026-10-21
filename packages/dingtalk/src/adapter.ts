@@ -71,6 +71,8 @@ export async function openDingTalk(_connectionId: string, io: IO, opts: DingTalk
   const mentioned = new Recent<true>(500);
   const seen = new Recent<true>(1000);
   const tenants = new Recent<string>(500);
+  /** Group titles from the messages that came from them, for Settings. */
+  const titles = new Recent<string>(500);
   /** Where each card this session posted lives, so a button pressed on it finds its conversation. */
   const cards = new Recent<ImAddress>(1000);
   const tried = new Recent<true>(500);
@@ -115,6 +117,7 @@ export async function openDingTalk(_connectionId: string, io: IO, opts: DingTalk
     seen.set(m.msgId, true);
     const address = addressOf(m);
     tenants.set(address.conversationId, address.tenantId);
+    if (m.conversationType === "2" && m.conversationTitle) titles.set(address.conversationId, m.conversationTitle);
     conversations.set(m.msgId, m.conversationId);
     senders.set(m.msgId, { id: actorId, ...(m.senderNick ? { nick: m.senderNick } : {}) });
     if (m.sessionWebhook) webhooks.set(address.conversationId, { url: m.sessionWebhook, until: Number(m.sessionWebhookExpiredTime) || Date.now() + 5 * 60_000 });
@@ -262,6 +265,12 @@ export async function openDingTalk(_connectionId: string, io: IO, opts: DingTalk
 
   return {
     identity: { id: robotCode },
+
+    /** A group by the title its messages carry; nothing before one arrived, or for a direct chat. */
+    async describe(address) {
+      const name = titles.get(address.conversationId);
+      return name ? { name } : null;
+    },
 
     async deliver(d: ImDelivery) {
       if (d.replaceMessageId) {

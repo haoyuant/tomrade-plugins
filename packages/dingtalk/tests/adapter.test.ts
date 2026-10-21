@@ -427,3 +427,16 @@ describe("using it in a group", () => {
     }
   });
 });
+
+describe("naming conversations", () => {
+  it("names a group by the title its messages carry, and nothing for a direct chat", async () => {
+    const { fake, session, events } = await connect();
+    expect(await session.describe!({ tenantId: "corp", conversationId: "cid-team" })).toBeNull();
+    fake.message({ sender: "ann", text: "hi", group: "cid-team" });
+    fake.message({ sender: "ann", text: "hi" });
+    await until("both messages", () => events.length === 2);
+    expect(await session.describe!({ tenantId: "corp", conversationId: "cid-team" })).toEqual({ name: "Team" });
+    expect(await session.describe!({ tenantId: "corp", conversationId: message(events).address.conversationId })).toBeNull();
+  });
+});
+
