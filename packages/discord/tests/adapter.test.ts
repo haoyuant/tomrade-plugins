@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { ImDeliveryError, resolveImCapabilities, type ImDelivery, type ImInbound } from "@tomradex/plugin-sdk";
+import { ImDeliveryError, resolveImCapabilities, type ImAdapter, type ImDelivery, type ImInbound, type ImNotice } from "@tomradex/plugin-sdk";
 import { CAPABILITIES, openDiscord } from "../src/adapter.js";
 import { FakeDiscord } from "../src/fake.js";
+import plugin from "../src/index.js";
+import { installLink } from "../src/wire.js";
 
 const open: { close(): void }[] = [];
 afterEach(() => { for (const o of open.splice(0)) o.close(); });
@@ -12,18 +14,21 @@ const GUILD = "77";
 const CHANNEL = "30";
 const THREAD = "31";
 
-async function connect(discord = new FakeDiscord(), opts: { token?: string; outbound?: Record<string, Uint8Array> } = {}) {
+async function connect(discord = new FakeDiscord(), opts: { token?: string; outbound?: Record<string, Uint8Array>; olderHost?: boolean } = {}) {
   const events: ImInbound[] = [];
   const states: string[] = [];
+  /** What the adapter told the host: notices, and `clear:<key>` once their cause went. */
+  const notices: (ImNotice | string)[] = [];
   const ac = new AbortController();
   const session = await openDiscord("bot", {
     signal: ac.signal,
     credentials: { botToken: opts.token ?? discord.token },
     receive: async e => { events.push(e); return { receiptId: `r${events.length}` }; },
     status: s => { states.push(s); },
-    readOutboundFile: async id => opts.outbound?.[id] ?? new Uint8Array()
+    readOutboundFile: async id => opts.outbound?.[id] ?? new Uint8Array(),
+    ...(opts.olderHost ? {} : { notice: (n: ImNotice) => { notices.push(n); }, clearNotice: (key: string) => { notices.push(`clear:${key}`); } })
   }, { net: discord.net(), backoffMs: 10 });
-  const handle = { discord, session, events, states, close: () => { ac.abort(); void session.close(); } };
+  const handle = { discord, session, events, states, notices, close: () => { ac.abort(); void session.close(); } };
   open.push(handle);
   return handle;
 }
@@ -260,5 +265,74 @@ describe("ticket threads", () => {
     discord.failNext(c => c.path.endsWith("/threads"), 429, { retryAfter: 2 });
     await expect(session.topics!.open({ operationId: "t2", address: room, title: TITLE })).rejects.toMatchObject({ disposition: "retryable", retryAfterMs: 2000 });
     await expect(session.topics!.open({ operationId: "t3", address: { tenantId: "@me", conversationId: DM }, title: TITLE })).rejects.toBeInstanceOf(ImDeliveryError);
+  });
+});
+
+describe("adding the bot and its permissions", () => {
+  /** Discord's documented bits for each permission the setup lists. */
+  const BITS: Record<string, bigint> = {
+    "View Channels": 1n << 10n, "Send Messages": 1n << 11n, "Send Messages in Threads": 1n << 38n, "Create Public Threads": 1n << 35n,
+    "Manage Threads": 1n << 34n, "Read Message History": 1n << 16n, "Embed Links": 1n << 14n, "Attach Files": 1n << 15n, "Add Reactions": 1n << 6n
+  };
+  const room = { tenantId: GUILD, conversationId: CHANNEL };
+  const TITLE = "TOM-42 · Doing · Fix the login page";
+
+  it("offers an install link, once connected, asking for exactly the permissions setup lists", async () => {
+    let adapter: ImAdapter | undefined;
+    await plugin.apply({ im: { register: async (a: ImAdapter) => { adapter = a; return () => {}; } } } as never, undefined as never);
+    const listed = adapter!.setup!.permissions!;
+    expect(listed.every(name => BITS[name] !== undefined)).toBe(true);
+    const bits = listed.reduce((sum, name) => sum | BITS[name]!, 0n);
+    const { session } = await connect();
+    const url = new URL(session.links![0]!.url);
+    expect(url.origin + url.pathname).toBe("https://discord.com/oauth2/authorize");
+    expect(Object.fromEntries(url.searchParams)).toEqual({ client_id: "800", scope: "bot applications.commands", permissions: String(bits) });
+    expect(session.links![0]!.label).toEqual({ en: "Add the bot to a server", zh: "把机器人加到服务器" });
+    expect(session.links![0]!.url).toBe(installLink("800"));
+  });
+
+  it("says a missing permission once per channel, and again only after it worked in between", async () => {
+    const { discord, session, notices } = await connect();
+    discord.failNext(c => c.path.endsWith("/threads"), 403, { code: 50013, times: 2 });
+    for (const op of ["t1", "t2"]) await expect(session.topics!.open({ operationId: op, address: room, title: TITLE })).rejects.toMatchObject({ disposition: "permanent" });
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toMatchObject({ key: `perm:${CHANNEL}:Create Public Threads`, address: room, link: { url: installLink("800") },
+      text: { en: expect.stringContaining("missing the **Create Public Threads** permission") } });
+
+    // Granted: the next one opens without a restart, and the notice is withdrawn.
+    const { topicId } = await session.topics!.open({ operationId: "t3", address: room, title: TITLE });
+    expect(discord.threads.has(topicId)).toBe(true);
+    expect(notices.at(-1)).toBe(`clear:perm:${CHANNEL}:Create Public Threads`);
+    discord.failNext(c => c.path.endsWith("/threads"), 403, { code: 50013 });
+    await expect(session.topics!.open({ operationId: "t4", address: room, title: TITLE })).rejects.toBeInstanceOf(ImDeliveryError);
+    expect(notices.filter(n => typeof n !== "string")).toHaveLength(2);
+  });
+
+  it("names the permission each refused call needs, and says nothing for a direct chat or another refusal", async () => {
+    const { discord, session, notices } = await connect();
+    const keys = () => notices.flatMap(n => typeof n === "string" ? [] : [n.key]);
+    discord.failNext(c => c.method === "POST" && c.path === `/channels/${THREAD}/messages`, 403, { code: 50013 });
+    await expect(session.deliver(delivery({ guild: GUILD, channel: CHANNEL, address: { ...room, topicId: THREAD } }))).rejects.toBeInstanceOf(ImDeliveryError);
+    discord.failNext(c => c.method === "PATCH" && c.path === `/channels/${THREAD}`, 403, { code: 50013 });
+    await expect(session.topics!.update({ address: { ...room, topicId: THREAD }, title: TITLE, closed: true })).rejects.toBeInstanceOf(ImDeliveryError);
+    discord.failNext(c => c.path.includes("/reactions/"), 403, { code: 50013 });
+    await expect(session.react!({ address: room, messageId: "5", reaction: "received" })).rejects.toBeInstanceOf(ImDeliveryError);
+    discord.failNext(c => c.method === "POST" && c.path === "/channels/32/messages", 403, { code: 50001 });
+    await expect(session.deliver(delivery({ guild: GUILD, channel: "32" }))).rejects.toBeInstanceOf(ImDeliveryError);
+    discord.failNext(c => c.method === "POST" && c.path === `/channels/${DM}/messages`, 403, { code: 50013 });
+    await expect(session.deliver(delivery({ channel: DM }))).rejects.toBeInstanceOf(ImDeliveryError);
+    discord.failNext(c => c.method === "POST" && c.path === `/channels/${CHANNEL}/messages`, 403);
+    await expect(session.deliver(delivery({ guild: GUILD, channel: CHANNEL }))).rejects.toBeInstanceOf(ImDeliveryError);
+    expect(keys()).toEqual([`perm:${CHANNEL}:Send Messages in Threads`, `perm:${CHANNEL}:Manage Threads`, `perm:${CHANNEL}:Add Reactions`, "perm:32:Send Messages"]);
+    expect((notices.at(-1) as ImNotice).text).toMatchObject({ en: expect.stringContaining("missing the **View Channels** permission") });
+  });
+
+  it("on a Tomrade without notices, says it in the channel itself", async () => {
+    const { discord, session } = await connect(new FakeDiscord(), { olderHost: true });
+    discord.failNext(c => c.path.endsWith("/threads"), 403, { code: 50013, times: 2 });
+    for (const op of ["t1", "t2"]) await expect(session.topics!.open({ operationId: op, address: room, title: TITLE })).rejects.toBeInstanceOf(ImDeliveryError);
+    await until("the line in the channel", () => posted(discord, CHANNEL).length === 1);
+    await new Promise(r => setTimeout(r, 20));
+    expect(posted(discord, CHANNEL)).toEqual([{ content: expect.stringMatching(/missing the \*\*Create Public Threads\*\* permission[\s\S]*Add the bot to a server: https:\/\/discord\.com\/oauth2\/authorize/), allowed_mentions: { parse: [] } }]);
   });
 });

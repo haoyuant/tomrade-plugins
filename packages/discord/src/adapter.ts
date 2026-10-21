@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { ImDeliveryError, type ImAdapter, type ImAdapterSession, type ImAddress, type ImCapabilities, type ImCommand, type ImContextMessage, type ImDelivery, type ImInbound } from "@tomradex/plugin-sdk";
+import { ImDeliveryError, type ImAdapter, type ImAdapterSession, type ImAddress, type ImCapabilities, type ImCommand, type ImContextMessage, type ImDelivery, type ImInbound, type ImLink } from "@tomradex/plugin-sdk";
 import { Gateway, net, type Net } from "./gateway.js";
-import { actorOf, addressOf, API, INTENTS, inboundMessage, isThread, MESSAGE_CONTENT, messageOf, parseControl, REACTIONS, threadName, threadOf, wantsContent, type DInteraction, type DMessage, type DOption } from "./wire.js";
+import { actorOf, addressOf, API, installLink, INTENTS, inboundMessage, isThread, MESSAGE_CONTENT, messageOf, parseControl, REACTIONS, threadName, threadOf, wantsContent, type DInteraction, type DMessage, type DOption, type Permission } from "./wire.js";
 
 export const CAPABILITIES: ImCapabilities = {
   edit: true, buttons: true, inboundFiles: true, outboundFiles: true,
@@ -35,11 +35,28 @@ async function call(n: Net, token: string, method: string, path: string, body?: 
   }
   if (res.status >= 500) throw new ImDeliveryError(`Discord error ${res.status}`, "retryable");
   if (!res.ok) {
-    const detail = await res.json().catch(() => ({})) as { message?: string };
-    throw new ImDeliveryError(`Discord refused (${res.status}${detail.message ? `: ${detail.message}` : ""})`, "permanent");
+    const detail = await res.json().catch(() => ({})) as { message?: string; code?: number };
+    throw Object.assign(new ImDeliveryError(`Discord refused (${res.status}${detail.message ? `: ${detail.message}` : ""})`, "permanent"), { code: detail.code });
   }
   return res.status === 204 ? null : res.json() as Promise<Record<string, unknown>>;
 }
+
+/** Missing Access (the bot cannot see the channel) and Missing Permissions. */
+const MISSING_ACCESS = 50001;
+const MISSING_PERMISSIONS = 50013;
+
+/** What the bot could not do, by the permission it lacked, in the person's words. */
+const UNABLE: Record<Permission, { en: string; zh: string }> = {
+  "View Channels": { en: "see", zh: "查看" },
+  "Send Messages": { en: "post", zh: "发消息" },
+  "Send Messages in Threads": { en: "post in threads", zh: "在话题里发消息" },
+  "Create Public Threads": { en: "open a thread per ticket", zh: "给工单开话题" },
+  "Manage Threads": { en: "rename or archive ticket threads", zh: "改名或归档工单话题" },
+  "Read Message History": { en: "read the history", zh: "读取历史消息" },
+  "Embed Links": { en: "show cards", zh: "显示卡片" },
+  "Attach Files": { en: "attach files", zh: "附加文件" },
+  "Add Reactions": { en: "react to messages", zh: "给消息加表情" }
+};
 
 /** Remembers the most recent `max` entries. */
 class Recent<V> extends Map<string, V> {
@@ -200,14 +217,47 @@ export async function openDiscord(connectionId: string, io: IO, opts: { net?: Ne
   applicationId = ready.applicationId;
 
   const channelOf = (address: ImAddress, threadId?: string) => threadId ?? address.topicId ?? address.conversationId;
+  const addBot = { en: "Add the bot to a server", zh: "把机器人加到服务器" };
+  const install: ImLink = { label: addBot, url: installLink(applicationId) };
+
+  /** Channel and permission pairs told to the person, so each is said once until it works again. */
+  const missing = new Set<string>();
+  /**
+   * Runs a call in a server channel, saying once per channel and permission when Discord refuses it for one the bot
+   * lacks; the refusal still reaches the IM layer, which keeps the news in the channel's main conversation.
+   */
+  const guarded = async <T>(address: ImAddress, permission: Permission, work: () => Promise<T>): Promise<T> => {
+    const key = `perm:${address.conversationId}:${permission}`;
+    try {
+      const done = await work();
+      if (missing.delete(key)) io.clearNotice?.(key);
+      return done;
+    } catch (e) {
+      const code = (e as { code?: unknown }).code;
+      if (address.tenantId !== "@me" && (code === MISSING_PERMISSIONS || code === MISSING_ACCESS) && !missing.has(key)) {
+        missing.add(key);
+        const lacked: Permission = code === MISSING_ACCESS ? "View Channels" : permission;
+        const where = { tenantId: address.tenantId, conversationId: address.conversationId };
+        const text = {
+          en: `I can't ${UNABLE[lacked].en} in <#${where.conversationId}>: the bot is missing the **${lacked}** permission. Add the bot again with the link below to grant it, or allow it in the channel's settings.`,
+          zh: `我在 <#${where.conversationId}> 里无法${UNABLE[lacked].zh}：机器人缺少 **${lacked}** 权限。用下面的链接重新添加机器人即可授予，或者在频道设置里允许它。`
+        };
+        if (io.notice) io.notice({ key, text, address: where, link: install });
+        // An older Tomrade has no notices: the channel hears it from the bot directly, if it can.
+        else void rest("POST", `/channels/${where.conversationId}/messages`, { content: `${text.en}\n${addBot.en}: ${install.url}`, allowed_mentions: { parse: [] } }).catch(() => null);
+      }
+      throw e;
+    }
+  };
   let reacted = new Recent<string>(500);
   /** The name each thread was last given; Discord allows only a couple of renames per thread every ten minutes. */
   const named = new Recent<string>(500);
 
   return {
     identity: { id: ready.user.id, name: ready.user.username },
+    links: [install],
 
-    async deliver(d: ImDelivery) {
+    deliver: (d: ImDelivery) => guarded(d.address, d.content.files?.length ? "Attach Files" : d.address.topicId || d.threadId ? "Send Messages in Threads" : "Send Messages", async () => {
       const channel = channelOf(d.address, d.threadId);
       const payload = messageOf(d.content);
       if (d.replaceMessageId) {
@@ -223,7 +273,7 @@ export async function openDiscord(connectionId: string, io: IO, opts: { net?: Ne
         ...(d.replyTo ? { message_reference: { message_id: d.replyTo, fail_if_not_exists: false } } : {})
       }, files);
       return { messageId: res!.id as string };
-    },
+    }),
 
     async download(ref) {
       const url = attachments.get(ref.id);
@@ -237,13 +287,13 @@ export async function openDiscord(connectionId: string, io: IO, opts: { net?: Ne
       if (state !== "idle") await rest("POST", `/channels/${channelOf(address, threadId)}/typing`);
     },
 
-    async react({ address, messageId, reaction }) {
+    react: ({ address, messageId, reaction }) => guarded(address, "Add Reactions", async () => {
       const channel = channelOf(address);
       const previous = reacted.get(messageId);
       if (previous && previous !== REACTIONS[reaction]) await rest("DELETE", `/channels/${channel}/messages/${messageId}/reactions/${encodeURIComponent(previous)}/@me`).catch(() => null);
       await rest("PUT", `/channels/${channel}/messages/${messageId}/reactions/${encodeURIComponent(REACTIONS[reaction])}/@me`);
       reacted.set(messageId, REACTIONS[reaction]);
-    },
+    }),
 
     topics: {
       async open({ address, title }) {
@@ -251,7 +301,9 @@ export async function openDiscord(connectionId: string, io: IO, opts: { net?: Ne
         if (address.tenantId === "@me") throw new ImDeliveryError("Direct messages have no threads", "permanent");
         if (!kinds.has(channel)) learnChannel(await rest("GET", `/channels/${channel}`) as { id: string; type: number; parent_id?: string | null });
         const kind = kinds.get(channel) ?? 0;
-        const res = await rest("POST", `/channels/${channel}/threads`, threadOf(kind, title)) as { id: string; type?: number };
+        // A forum or media channel takes a post, which is a message.
+        const res = await guarded(address, [15, 16].includes(kind) ? "Send Messages" : "Create Public Threads",
+          () => rest("POST", `/channels/${channel}/threads`, threadOf(kind, title))) as { id: string; type?: number };
         // Messages in it arrive as its topic before the gateway says it exists.
         learnChannel({ id: res.id, type: res.type ?? 11, parent_id: channel });
         named.set(res.id, threadName(title));
@@ -261,7 +313,7 @@ export async function openDiscord(connectionId: string, io: IO, opts: { net?: Ne
       async update({ address, title, closed }) {
         const name = threadName(title);
         // Reopening and renaming go in one edit; an archived thread takes no other change.
-        await rest("PATCH", `/channels/${address.topicId}`, { ...(named.get(address.topicId) !== name ? { name } : {}), archived: closed });
+        await guarded(address, "Manage Threads", () => rest("PATCH", `/channels/${address.topicId}`, { ...(named.get(address.topicId) !== name ? { name } : {}), archived: closed }));
         named.set(address.topicId, name);
       }
     },
