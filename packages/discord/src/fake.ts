@@ -25,7 +25,7 @@ export class FakeDiscord {
   private log: { s: number; t: string; d: unknown }[] = [];
   private sessionId = "session-1";
   private ids = 1000;
-  private fail: { match: (c: FakeCall) => boolean; status: number; retryAfter?: number; times: number }[] = [];
+  private fail: { match: (c: FakeCall) => boolean; status: number; retryAfter?: number; code?: number; times: number }[] = [];
   readonly messages = new Map<string, { channel: string; body: Record<string, unknown> }>();
   /** Channel types the REST answers with; a channel left out is a text channel. */
   readonly channelTypes = new Map<string, number>();
@@ -41,9 +41,9 @@ export class FakeDiscord {
     return { fetch: (input, init) => this.fetch(String(input), init), WebSocket: Socket as unknown as typeof WebSocket };
   }
 
-  /** Answers the next calls `match` picks with `status` (a 429 carries retry_after seconds). */
-  failNext(match: (c: FakeCall) => boolean, status: number, opts: { retryAfter?: number; times?: number } = {}) {
-    this.fail.push({ match, status, ...(opts.retryAfter !== undefined ? { retryAfter: opts.retryAfter } : {}), times: opts.times ?? 1 });
+  /** Answers the next calls `match` picks with `status` (a 429 carries retry_after seconds; `code` is Discord's JSON error code). */
+  failNext(match: (c: FakeCall) => boolean, status: number, opts: { retryAfter?: number; code?: number; times?: number } = {}) {
+    this.fail.push({ match, status, ...(opts.retryAfter !== undefined ? { retryAfter: opts.retryAfter } : {}), ...(opts.code !== undefined ? { code: opts.code } : {}), times: opts.times ?? 1 });
   }
 
   /** Sends an event to the live connection; a dropped connection gets it on resume. */
@@ -123,7 +123,8 @@ export class FakeDiscord {
     const failing = this.fail.find(f => f.times > 0 && f.match(call));
     if (failing) {
       failing.times--;
-      return json(failing.status === 429 ? { message: "You are being rate limited.", retry_after: failing.retryAfter ?? 0.05 } : { message: "Failure" }, failing.status);
+      return json(failing.status === 429 ? { message: "You are being rate limited.", retry_after: failing.retryAfter ?? 0.05 }
+        : failing.code !== undefined ? { message: "Missing Permissions", code: failing.code } : { message: "Failure" }, failing.status);
     }
     let m: RegExpExecArray | null;
     if (method === "POST" && (m = /^\/channels\/(\d+)\/messages$/.exec(path))) {

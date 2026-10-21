@@ -17,6 +17,18 @@ export interface DInteraction {
 export interface DOption { name: string; type: number; value?: string; options?: DOption[] }
 
 export const API = "https://discord.com/api/v10";
+
+/** What the bot is granted: the names setup lists, and the bits its install link asks for. */
+export const PERMISSIONS = [
+  ["View Channels", 1n << 10n], ["Send Messages", 1n << 11n], ["Send Messages in Threads", 1n << 38n],
+  ["Create Public Threads", 1n << 35n], ["Manage Threads", 1n << 34n], ["Read Message History", 1n << 16n],
+  ["Embed Links", 1n << 14n], ["Attach Files", 1n << 15n], ["Add Reactions", 1n << 6n]
+] as const;
+export type Permission = typeof PERMISSIONS[number][0];
+
+/** Adds the bot to a server with exactly those permissions and its `/tomrade` command. */
+export const installLink = (applicationId: string) =>
+  `https://discord.com/oauth2/authorize?client_id=${applicationId}&scope=bot+applications.commands&permissions=${PERMISSIONS.reduce((bits, [, bit]) => bits | bit, 0n)}`;
 export const GATEWAY = "wss://gateway.discord.gg/?v=10&encoding=json";
 /** GUILDS, GUILD_MESSAGES, DIRECT_MESSAGES. Message Content stays off: a mention or a direct message carries its text anyway. */
 export const INTENTS = (1 << 0) | (1 << 9) | (1 << 12);

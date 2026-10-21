@@ -1,5 +1,6 @@
 import { definePlugin } from "@tomradex/plugin-sdk";
 import { CAPABILITIES, openDiscord } from "./adapter.js";
+import { PERMISSIONS } from "./wire.js";
 
 /** Discord over the Gateway: direct messages, @mentions and replies in channels and threads, from this computer. */
 export default definePlugin({
@@ -22,11 +23,11 @@ export default definePlugin({
         steps: [
           { en: "Open the Discord Developer Portal and create a **New Application**.", zh: "打开 Discord 开发者后台，点 **New Application** 新建应用。" },
           { en: "In **Bot**, press **Reset Token** and copy it into the field below. Privileged intents can stay off: mentions and direct messages carry their text without Message Content.", zh: "在 **Bot** 页点 **Reset Token**，把令牌复制到下面。特权 Intent 都可以不开：@ 机器人和私信本身就带正文，不需要 Message Content。" },
-          { en: "In **Installation**, keep Guild Install with the scopes `bot` and `applications.commands` and the permissions listed here, then open the install link and add the bot to your server.", zh: "在 **Installation** 里保留 Guild Install，勾选 `bot` 和 `applications.commands` 两个 scope 以及下面列出的权限，然后打开安装链接把机器人加到你的服务器。" },
           { en: "Optional: to let the assistant see a channel's recent discussion when @mentioned, turn on **Message Content Intent** under **Bot**, type `on` in the optional field below, and turn on the window for that group in its route. Off by default; the messages stay on this computer.", zh: "可选：想让助手被 @ 时看到频道最近的讨论，在 **Bot** 页打开 **Message Content Intent**，在下面的可选字段填 `on`，再在该群的路由里打开上下文窗口。默认关闭；消息只保存在这台电脑上。" },
-          { en: "Save and connect. Then send the bot a direct message with the pairing code from Tomrade, and @mention it in a channel to use it there.", zh: "保存并连接。然后私信机器人发送 Tomrade 里的配对码；在频道里 @ 它即可在频道使用。" }
+          { en: "Save and connect. The connection then shows **Add the bot to a server**: open it, pick your server and authorize. It asks for exactly the permissions listed here. If the link does not show, use **Installation** in the portal instead: Guild Install with the scopes `bot` and `applications.commands` and these permissions.", zh: "保存并连接。连上后连接卡片上会出现 **把机器人加到服务器**：打开它，选择服务器并授权，它申请的正好是下面列出的权限。如果没有出现这个链接，就改用开发者后台的 **Installation**：Guild Install，勾选 `bot` 和 `applications.commands` 两个 scope 以及这些权限。" },
+          { en: "Send the bot a direct message with the pairing code from Tomrade, then @mention it in a channel to use it there.", zh: "私信机器人发送 Tomrade 里的配对码，然后在频道里 @ 它即可在频道使用。" }
         ],
-        permissions: ["View Channels", "Send Messages", "Send Messages in Threads", "Create Public Threads", "Manage Threads", "Read Message History", "Embed Links", "Attach Files", "Add Reactions"],
+        permissions: PERMISSIONS.map(([name]) => name),
         docsUrl: "https://discord.com/developers/applications"
       },
       open: (connectionId, io) => openDiscord(connectionId, io)
