@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.0
+
+- Settings → IM shows a channel as `#name` and a direct message by the person in it, instead of its id (SDK 0.2.24 `describe`, from `conversations.info`). That needs the app to have `channels:read` (and `groups:read`, `im:read` for private channels and direct messages); without them the id stays and nothing is said.
+
 ## 0.3.0
 
 - A channel the bot was not invited to (`not_in_channel`, `channel_not_found`) or a scope the app lacks (`missing_scope`, named as Slack names it) is said once per channel, with the `/invite` to type or the scope to add (SDK 0.2.20 notices; your direct message hears it when the channel cannot), and cleared once a call works there again.

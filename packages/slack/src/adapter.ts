@@ -357,6 +357,14 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
   return {
     identity: { id: botUserId, name: botName },
 
+    /** A channel as `#name`; a direct message by the person in it. Without the scope to read channels, nothing. */
+    async describe(address) {
+      const r = await api.call<{ channel?: { name?: string; is_im?: boolean; user?: string } }>("conversations.info", { channel: address.conversationId }, { repeatable: true }).catch(() => null);
+      const channel = r?.channel;
+      if (channel?.is_im && channel.user) { const name = await nameOf(channel.user); return name ? { name } : null; }
+      return channel?.name ? { name: `#${channel.name}` } : null;
+    },
+
     deliver: (d: ImDelivery) => guarded(d.address.conversationId, async () => {
       const channel = d.address.conversationId;
       if (d.replaceMessageId) {

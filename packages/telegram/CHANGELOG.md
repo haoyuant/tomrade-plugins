@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.0
+
+- Settings → IM shows a group by its title and a direct chat by the person in it, instead of its id (SDK 0.2.24 `describe`, from `getChat`).
+
 ## 0.3.0
 
 - **Add the bot to a group**: once connected, the connection in Settings → IM offers a `t.me/<bot>?startgroup` link that asks to make the bot an admin with exactly the right it uses (Manage Topics).

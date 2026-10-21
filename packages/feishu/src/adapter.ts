@@ -281,13 +281,16 @@ export async function openFeishu(connectionId: string, io: IO, opts: FeishuOptio
     }
   };
 
+  /** Group chats' names, from the same chat info as their mode. */
+  const chatNames = new Map<string, string>();
   /** A chat's mode; null when Feishu will not say (no chat scope), and the IM layer, which opens topics only in groups, is taken at its word. */
   const chatModeOf = async (chat: string): Promise<string | null> => {
     if (chatModes.has(chat)) return chatModes.get(chat)!;
     let mode: string | null = null;
     try {
-      const r = await api.call<{ data?: { chat_mode?: string } }>("GET", `/open-apis/im/v1/chats/${encodeURIComponent(chat)}`);
+      const r = await api.call<{ data?: { chat_mode?: string; name?: string } }>("GET", `/open-apis/im/v1/chats/${encodeURIComponent(chat)}`);
       mode = r.data?.chat_mode ?? null;
+      if (r.data?.name) chatNames.set(chat, r.data.name);
     } catch (e) {
       if (!(e instanceof FeishuError) || e.disposition !== "permanent") throw e;
     }
@@ -338,6 +341,13 @@ export async function openFeishu(connectionId: string, io: IO, opts: FeishuOptio
 
   return {
     identity: { id: botOpenId || appId, ...(bot.app_name ? { name: bot.app_name } : {}) },
+
+    /** A group by its name; a direct chat has none Feishu gives the bot. */
+    async describe(address) {
+      await chatModeOf(address.conversationId).catch(() => null);
+      const name = chatNames.get(address.conversationId);
+      return name ? { name } : null;
+    },
 
     deliver: (d: ImDelivery) => guarded(d.address, async () => {
       const topic = d.address.topicId;

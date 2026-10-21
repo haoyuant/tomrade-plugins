@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.0
+
+- Settings → IM shows a group by its name instead of its id (SDK 0.2.24 `describe`, from the chat info it already reads).
+
 ## 0.3.0
 
 - A post refused because the bot left the group, the app lacks a permission (naming the scopes Feishu names, with the console's permission page) or the bot may not do it in that group is said once per group (SDK 0.2.20 notices) and cleared once a post works there again.

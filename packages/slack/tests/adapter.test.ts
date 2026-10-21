@@ -563,3 +563,18 @@ describe("using it in channels", () => {
     expect(notices).toEqual([{ key: "slack:C0DEV:scope:reactions:write", address: room, text: { en: expect.stringContaining("`reactions:write` scope"), zh: expect.stringContaining("`reactions:write`") } }]);
   });
 });
+
+describe("naming conversations", () => {
+  it("names a channel as #name and a direct message by the person in it, and nothing without the scope", async () => {
+    const { fake, session } = await connect();
+    fake.channels.set("C0DEV", "dev");
+    fake.dms.set("D0ANN", "U0ANN");
+    fake.users.set("U0ANN", "Ann");
+    expect(await session.describe!({ tenantId: "T0FAKE", conversationId: "C0DEV" })).toEqual({ name: "#dev" });
+    expect(await session.describe!({ tenantId: "T0FAKE", conversationId: "D0ANN" })).toEqual({ name: "Ann" });
+    expect(await session.describe!({ tenantId: "T0FAKE", conversationId: "C0GONE" })).toBeNull();
+    fake.noChannelScope = true;
+    expect(await session.describe!({ tenantId: "T0FAKE", conversationId: "C0DEV" })).toBeNull();
+  });
+});
+

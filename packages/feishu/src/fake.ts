@@ -36,6 +36,8 @@ export class FakeFeishu {
   readonly files = new Map<string, { bytes: Uint8Array; type: string }>();
   /** Each chat's mode as the chat API tells it; a chat a person wrote in is added. */
   readonly chats = new Map<string, "p2p" | "group" | "topic">();
+  /** Group names the chat info gives. */
+  readonly chatNames = new Map<string, string>();
   /** Seconds, as Feishu sends it. */
   pingInterval = 120;
   /** When set, pings go unanswered, as on a dead connection. */
@@ -241,7 +243,8 @@ export class FakeFeishu {
     if (method === "GET" && (m = /^\/open-apis\/im\/v1\/chats\/([^/]+)$/.exec(p))) {
       if (this.noChatInfo) return json({ code: 99991672, msg: "Access denied. One of the following scopes is required: [im:chat:readonly]" }, 400);
       const mode = this.chats.get(decodeURIComponent(m[1]!));
-      return mode ? json({ code: 0, data: { chat_mode: mode, chat_type: mode === "p2p" ? "" : "private" } }) : json({ code: 232011, msg: "operator not in the chat" }, 400);
+      const name = this.chatNames.get(decodeURIComponent(m[1]!));
+      return mode ? json({ code: 0, data: { chat_mode: mode, chat_type: mode === "p2p" ? "" : "private", ...(name ? { name } : {}) } }) : json({ code: 232011, msg: "operator not in the chat" }, 400);
     }
     if (p.startsWith("/open-apis/cardkit/v1/cards")) return this.cardkit(method, p, body);
     return json({ code: 404, msg: "404 page not found" }, 404);

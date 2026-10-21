@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0
+
+- Settings → IM shows a server channel as `#name` and a direct chat by the person in it, instead of its id (SDK 0.2.24 `describe`); `/tomrade setup` names the channels it allows.
+
 ## 0.5.0
 
 - Settings → IM shows, under a connected Discord bot, how to use it in a server (SDK 0.2.22 `groupSteps`): add the bot with its install link, run `/tomrade setup` or @mention it in a channel, then move a ticket to Doing to see its thread. The README follows the same steps and lists the permission each feature needs.
