@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
+import type { ImAdapter } from "@tomradex/plugin-sdk";
+import plugin from "../src/index.js";
 import type { ImAdapterSession, ImDelivery, ImInbound } from "@tomradex/plugin-sdk";
 import { openDingTalk } from "../src/adapter.js";
 import { TEMPLATE } from "../src/card.js";
@@ -410,5 +412,18 @@ describe("limits", () => {
     const { messageId } = await session.deliver(delivery({ to: "cidGroup1" }));
     expect(fake.cards.get(messageId)!.template).toBe("mine.schema");
     expect(fake.where("POST", /createAndDeliver$/)[0]!.body).toMatchObject({ imGroupOpenDeliverModel: { robotCode: fake.clientId } });
+  });
+});
+
+describe("using it in a group", () => {
+  it("shows its own steps for a group in IM settings, in English and Chinese", async () => {
+    const adapters: ImAdapter[] = [];
+    await plugin.apply({ im: { register: async (a: ImAdapter) => { adapters.push(a); return () => {}; } } } as never, undefined as never);
+    expect(adapters.length).toBeGreaterThan(0);
+    for (const a of adapters) {
+      const steps = a.setup!.groupSteps! as { en: string; zh: string }[];
+      expect(steps).toHaveLength(3);
+      expect(steps.every(s => s.en && s.zh)).toBe(true);
+    }
   });
 });

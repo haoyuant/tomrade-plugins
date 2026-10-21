@@ -4,6 +4,15 @@ Talk to a Tomrade project's assistant from Feishu or Lark: direct chats, @mentio
 
 Set it up in Settings → IM → Connect a bot → 飞书 Feishu (or Lark). The wizard lists the developer-console steps; only the App ID and App Secret are needed, and they are stored encrypted on this computer.
 
+## Use it in a group
+
+1. **Connect and pair** in Settings → IM, then send the bot the pairing code from Tomrade in a direct chat.
+2. **Add the bot to the group:** the group's settings → **Bots** → **Add bot**, and pick the app. It must be published, with the group's members in its availability.
+3. **Allow it.** @mention the bot in the group and choose **Work**, **Status** or **Chat**. A group hears nothing until it is allowed.
+4. **Work.** Move a ticket to Doing or Verifying: in a work group it gets a card of its own, and the ticket's news goes into that card's topic.
+
+When Feishu refuses a post because the bot left the group (230002), the app lacks a permission (99991672, with the scopes Feishu names and a link to the console's permission page) or the bot may not do it in that group (230027), the group, or your direct chat when the group cannot hear it, is told once, and Settings → IM shows it on the connection. Once a post works there again, it is cleared.
+
 What the adapter does:
 
 - Long connection: asks Feishu for a socket address, pings on the interval Feishu sets (a ping nobody answers drops the socket), reconnects with backoff through a fresh address, and joins events Feishu splits into parts. Every event is acknowledged; Feishu redelivers what was not, and the IM layer keeps each event once.

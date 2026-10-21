@@ -1,6 +1,6 @@
 {
   "id": "tomrade/dingtalk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "DingTalk",
   "description": "Talk to a project's assistant from DingTalk: direct chats and @mentions in groups, AI cards that stream replies and carry buttons for questions, and files both ways. Connects from this computer over DingTalk's Stream mode.",
   "license": "Apache-2.0",

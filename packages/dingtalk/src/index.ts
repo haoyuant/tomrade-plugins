@@ -32,7 +32,12 @@ const SETUP: ImAdapterSetup = {
       zh: "在钉钉里搜索这个机器人，私聊发送 Tomrade 里的配对码。要在群里使用，在「群设置 → 机器人 → 添加机器人」里加入它，再 @ 它提问；第一条回复会 @ 回你。" }
   ],
   permissions: ["qyapi_robot_sendmsg", "Card.Instance.Write", "Card.Streaming.Write"],
-  docsUrl: CONSOLE
+  docsUrl: CONSOLE,
+  groupSteps: [
+    { en: "In the group, open **Settings → Robots → Add robot** and pick the robot.", zh: "在群里打开「群设置 → 机器人 → 添加机器人」，选择这个机器人。" },
+    { en: "@mention the bot in the group and choose what it is for: Work, Status (news only) or Chat (talk to the assistant).", zh: "在群里 @机器人，选择这个群的用途：工作、状态（只推送消息）或聊天（和助手对话）。" },
+    { en: "DingTalk groups have no topics: in a work group, each ticket's news is a line in the group.", zh: "钉钉群没有话题：在工作群里，每个工单的动态在群里发一行。" }
+  ]
 };
 
 /** DingTalk over Stream mode: direct chats and @mentions in groups, from this computer. */

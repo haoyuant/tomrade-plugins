@@ -4,6 +4,13 @@ Talk to a Tomrade project's assistant from WeCom through an intelligent bot (智
 
 Set it up in Settings → IM → Connect a bot → 企业微信 WeCom. The wizard lists the steps: in the WeCom app, Workbench → Intelligent bots → Create bot → Create manually → Create in API mode, with the connection method **Use long connection**. Only the Bot ID and Secret are needed, and they are stored encrypted on this computer. A private deployment also fills in the long-connection address its admin console shows; the plugin's network permission names only WeCom's public hosts, so such a deployment needs its own build.
 
+## Use it in a group
+
+1. **Connect and pair** in Settings → IM, then send the bot the pairing code from Tomrade in a direct chat.
+2. **Add the bot to the group** from the group's settings; its visible range must include the group's members.
+3. **Allow it.** @mention the bot in the group and choose **Work**, **Status** or **Chat**. A group hears nothing until it is allowed.
+4. **Work.** WeCom groups have no topics: in a work group, each ticket's news is a line in the group.
+
 What the adapter does:
 
 - Long connection: subscribes with the Bot ID and Secret, pings every thirty seconds (a ping nobody answers drops the socket) and reconnects with backoff. WeCom keeps one connection per bot; when another one takes the bot over, this one stops and says so instead of fighting for it.

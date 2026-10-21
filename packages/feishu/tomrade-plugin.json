@@ -1,6 +1,6 @@
 {
   "id": "tomrade/feishu",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "title": "Feishu / Lark",
   "description": "Talk to a project's assistant from Feishu or Lark: direct chats, @mentions and topics in groups, a topic per ticket being worked, card buttons, selects and forms for questions, and replies that stream into a card. Connects from this computer over Feishu's long connection.",
   "license": "Apache-2.0",

@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
+import type { ImAdapter } from "@tomradex/plugin-sdk";
+import plugin from "../src/index.js";
 import type { ImAdapterSession, ImDelivery, ImInbound } from "@tomradex/plugin-sdk";
 import { openWecom, type WecomOptions } from "../src/adapter.js";
 import { THINKING } from "../src/card.js";
@@ -452,5 +454,18 @@ describe("limits", () => {
     await expect(session.deliver(delivery("ann"))).rejects.toMatchObject({ disposition: "permanent", code: 42033 });
     fake.failNext(cmd => cmd === "aibot_send_msg", "silent");
     await expect(session.deliver(delivery("ann"))).rejects.toMatchObject({ disposition: "uncertain" });
+  });
+});
+
+describe("using it in a group", () => {
+  it("shows its own steps for a group in IM settings, in English and Chinese", async () => {
+    const adapters: ImAdapter[] = [];
+    await plugin.apply({ im: { register: async (a: ImAdapter) => { adapters.push(a); return () => {}; } } } as never, undefined as never);
+    expect(adapters.length).toBeGreaterThan(0);
+    for (const a of adapters) {
+      const steps = a.setup!.groupSteps! as { en: string; zh: string }[];
+      expect(steps).toHaveLength(3);
+      expect(steps.every(s => s.en && s.zh)).toBe(true);
+    }
   });
 });
