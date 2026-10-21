@@ -34,8 +34,18 @@ export default definePlugin({
             zh: "想让每个正在处理的工单各有一个话题（标题带着工单状态，完成后自动关闭），请为群开启 **话题（Topics）**，并把机器人设为管理员、给它 **管理话题（Manage Topics）** 权限。否则工单的动态仍发在群里。" },
           { en: "Commands such as `/new`, `/stop`, `/status` and `/help` appear in the bot's menu once Tomrade is connected. Questions come with buttons; to answer in your own words, press ✍️ and reply.",
             zh: "连接后，`/new`、`/stop`、`/status`、`/help` 等指令会出现在机器人的菜单里。提问会带按钮；要用自己的话回答，点 ✍️ 后直接回复即可。" }
-        ]
+        ],
         // No docs link: the plugin names no host but api.telegram.org, and @BotFather lives in Telegram itself.
+        groupSteps: [
+          { en: "Add the bot to your group with **Add the bot to a group** on this connection; Telegram asks to make it an admin with **Manage Topics**, which a topic per ticket needs.",
+            zh: "用这个连接上的 **把机器人加到群** 把机器人加进你的群；Telegram 会请你把它设为有 **管理话题（Manage Topics）** 权限的管理员，每个工单一个话题需要这个权限。" },
+          { en: "For a topic per ticket, turn on **Topics** in the group's settings. Without them the group still works, with each ticket's news as a line in the group.",
+            zh: "想要每个工单一个话题，请在群设置里开启 **话题（Topics）**。不开也能用，只是每个工单的动态在群里发一行。" },
+          { en: "@mention the bot in the group and choose what it is for: Work, Status or Chat. With privacy mode on (the default) the bot sees only @mentions, replies to it and commands.",
+            zh: "在群里 @机器人，选择这个群的用途：工作、状态或聊天。隐私模式开着时（默认），机器人只能看到 @它的消息、回复它的消息和指令。" },
+          { en: "Move a ticket to Doing: in a work group with Topics, it gets a topic of its own.",
+            zh: "把一个工单移到「进行中」：在开启了话题的工作群里，它会有自己的话题。" }
+        ]
       },
       open: (connectionId, io) => openTelegram(connectionId, io)
     });

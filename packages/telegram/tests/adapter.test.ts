@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
-import type { ImAdapterSession, ImDelivery, ImInbound } from "@tomradex/plugin-sdk";
+import type { ImAdapter, ImAdapterSession, ImDelivery, ImInbound, ImNotice } from "@tomradex/plugin-sdk";
 import { openTelegram } from "../src/adapter.js";
 import { FakeTelegram } from "../src/fake.js";
-import type { TKeyboard } from "../src/wire.js";
+import plugin from "../src/index.js";
+import { ADMIN_RIGHTS, addToGroup, type TKeyboard } from "../src/wire.js";
 
 const open: { close(): void }[] = [];
 afterEach(() => { for (const o of open.splice(0)) o.close(); });
@@ -12,6 +13,8 @@ const hex = (n: number) => n.toString(16).padStart(2, "0").repeat(24);
 
 async function connect(fake = new FakeTelegram(), opts: { token?: string; outbound?: Record<string, Uint8Array>; receive?: (e: ImInbound) => Promise<unknown> } = {}) {
   const events: ImInbound[] = [];
+  /** What the adapter told the host: notices, and `clear:<key>` once their cause went. */
+  const notices: (ImNotice | string)[] = [];
   const states: string[] = [];
   const ac = new AbortController();
   const session = await openTelegram("c1", {
@@ -25,9 +28,11 @@ async function connect(fake = new FakeTelegram(), opts: { token?: string; outbou
       return { receiptId: `r${events.length}` };
     },
     status: s => { states.push(s); },
-    readOutboundFile: async id => opts.outbound?.[id] ?? new Uint8Array()
+    readOutboundFile: async id => opts.outbound?.[id] ?? new Uint8Array(),
+    notice: n => { notices.push(n); },
+    clearNotice: key => { notices.push(`clear:${key}`); }
   }, { net: fake.net(), backoffMs: 5, timeoutS: 1 });
-  const handle = { fake, session, events, states, close: () => { ac.abort(); void session.close(); } };
+  const handle = { fake, session, events, states, notices, close: () => { ac.abort(); void session.close(); } };
   open.push(handle);
   return handle;
 }
@@ -613,5 +618,57 @@ describe("ticket topics", () => {
     await session.topics!.update({ address, title: "TOM-42 · Done · Fix the login page", closed: true });
     expect(fake.where("editForumTopic").map(c => c.params.name)).toEqual(Array(3).fill("TOM-42 · Done · Fix the login page"));
     expect(fake.topics.get(`${GROUP}:${topicId}`)).toEqual({ name: "TOM-42 · Done · Fix the login page", closed: true });
+  });
+});
+
+describe("using it in a group", () => {
+  const TITLE = "TOM-42 · Doing · Fix the login page";
+  const group = { tenantId: "telegram", conversationId: String(GROUP) };
+
+  it("offers a link that adds the bot to a group as an admin with exactly the rights it uses", async () => {
+    const { session } = await connect();
+    const url = new URL(session.links![0]!.url);
+    expect(url.origin + url.pathname).toBe("https://t.me/tomrade_bot");
+    expect(Object.fromEntries(url.searchParams)).toEqual({ startgroup: "tomrade", admin: "manage_topics" });
+    expect(url.searchParams.get("admin")!.split(" ")).toEqual(ADMIN_RIGHTS.map(([right]) => right));
+    expect(session.links![0]).toEqual({ label: { en: "Add the bot to a group", zh: "把机器人加到群" }, url: addToGroup("tomrade_bot") });
+  });
+
+  it("shows its own steps for a group in IM settings, in English and Chinese", async () => {
+    let adapter: ImAdapter | undefined;
+    await plugin.apply({ im: { register: async (a: ImAdapter) => { adapter = a; return () => {}; } } } as never, undefined as never);
+    const steps = adapter!.setup!.groupSteps! as { en: string; zh: string }[];
+    expect(steps.length).toBeGreaterThan(2);
+    expect(steps.every(s => s.en && s.zh)).toBe(true);
+    expect(steps[0]!.en).toContain("Add the bot to a group");
+  });
+
+  it("says once per group that it has no Topics, and nothing more until topics work there", async () => {
+    const { fake, session, notices } = await connect();
+    for (const op of ["topic:1", "topic:2"]) await expect(session.topics!.open({ operationId: op, address: group, title: TITLE })).rejects.toMatchObject({ disposition: "permanent" });
+    expect(notices).toEqual([{ key: `topics:${GROUP}:forum`, address: group, link: { label: { en: "Add the bot to a group", zh: "把机器人加到群" }, url: addToGroup("tomrade_bot") },
+      text: { en: expect.stringContaining("turn on **Topics**"), zh: expect.stringContaining("开启 **话题（Topics）**") } }]);
+    fake.forums.add(GROUP);
+    await session.topics!.open({ operationId: "topic:3", address: group, title: TITLE });
+    expect(notices.at(-1)).toBe(`clear:topics:${GROUP}:forum`);
+  });
+
+  it("says once per group when the bot lacks Manage Topics, opening or closing one", async () => {
+    const { fake, session, notices } = await connect();
+    fake.forums.add(GROUP);
+    const { topicId } = await session.topics!.open({ operationId: "topic:1", address: group, title: TITLE });
+    fake.failNext(c => /ForumTopic$/.test(c.method), 400, "Bad Request: not enough rights to manage topics", { times: 2 });
+    await expect(session.topics!.update({ address: { ...group, topicId }, title: TITLE, closed: true })).rejects.toBeDefined();
+    await expect(session.topics!.open({ operationId: "topic:2", address: group, title: TITLE })).rejects.toBeDefined();
+    expect(notices.filter(n => typeof n !== "string")).toMatchObject([{ key: `topics:${GROUP}:rights`, text: { en: expect.stringContaining("**Manage Topics**") } }]);
+  });
+
+  it("says nothing for a direct chat or another refusal", async () => {
+    const { fake, session, notices } = await connect();
+    await expect(session.topics!.open({ operationId: "topic:1", address: { tenantId: "telegram", conversationId: String(fake.ann.id) }, title: TITLE })).rejects.toBeDefined();
+    fake.forums.add(GROUP);
+    fake.failNext(c => c.method === "createForumTopic", 400, "Bad Request: TOPIC_TITLE_INVALID");
+    await expect(session.topics!.open({ operationId: "topic:2", address: group, title: TITLE })).rejects.toBeDefined();
+    expect(notices).toEqual([]);
   });
 });
