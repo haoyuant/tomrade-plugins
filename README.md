@@ -84,12 +84,12 @@ herdr's marketplace lists it through this repository's `herdr-plugin` topic. The
 
 ## Develop
 
-This repository builds against Tomrade's `main`, so the SDK and CLI come from a Tomrade checkout **next to this one, named `tomrade-next`**:
+This repository builds against Tomrade's `main`, so the SDK and CLI come from a Tomrade checkout **next to this one, named `tomrade`**:
 
 ```sh
-git clone https://github.com/haoyuant/tomrade.git tomrade-next
+git clone https://github.com/haoyuant/tomrade.git tomrade
 git clone https://github.com/haoyuant/tomrade-plugins.git
-(cd tomrade-next && pnpm install && pnpm build:backend)
+(cd tomrade && pnpm install && pnpm build:backend)
 cd tomrade-plugins
 pnpm install
 ```

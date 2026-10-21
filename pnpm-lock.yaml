@@ -9,11 +9,11 @@ importers:
   .:
     devDependencies:
       '@tomradex/plugin-cli':
-        specifier: link:../tomrade-next/packages/plugin-cli
-        version: link:../tomrade-next/packages/plugin-cli
+        specifier: link:../tomrade/packages/plugin-cli
+        version: link:../tomrade/packages/plugin-cli
       '@tomradex/plugin-sdk':
-        specifier: link:../tomrade-next/packages/plugin-sdk
-        version: link:../tomrade-next/packages/plugin-sdk
+        specifier: link:../tomrade/packages/plugin-sdk
+        version: link:../tomrade/packages/plugin-sdk
       '@types/node':
         specifier: ^26.2.0
         version: 26.6.5

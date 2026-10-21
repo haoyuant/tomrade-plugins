@@ -1,5 +1,5 @@
 name: Set up
-description: Node, pnpm, and the plugin SDK and CLI built from Tomrade, next to this checkout as ../tomrade-next
+description: Node, pnpm, and the plugin SDK and CLI built from Tomrade, next to this checkout as ../tomrade
 inputs:
   token:
     description: A token that can read haoyuant/tomrade
@@ -11,7 +11,7 @@ runs:
       with:
         repository: haoyuant/tomrade
         token: ${{ inputs.token }}
-        path: tomrade-next
+        path: tomrade
 
     - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
@@ -25,7 +25,7 @@ runs:
     # Only the CLI and what it needs: no Electron, no app.
     - name: Build the plugin SDK and CLI
       shell: bash
-      working-directory: tomrade-next
+      working-directory: tomrade
       run: |
         pnpm install --frozen-lockfile --filter "@tomradex/plugin-cli..."
         pnpm exec tsc -b packages/plugin-cli
