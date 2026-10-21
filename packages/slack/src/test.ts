@@ -83,7 +83,8 @@ export default async function scenario(t: {
   t.check("a channel mention is answered in its thread", await until("a channel mention is answered", () => said("echo: in the channel", "C0DEV")));
   slack.message({ channel: "C0DEV", user: "U0ANN", text: "follow up", thread: asked.ts });
   t.check("a follow-up in that thread needs no @", await until("a follow-up is answered", () => said("echo: follow up", "C0DEV")));
-  t.check("the channel's answers stay in the thread", slack.posted("C0DEV").every(m => m.thread === asked.ts));
+  // A ticket already being worked has its own thread in the channel from before the mention.
+  t.check("the channel's answers stay in the thread", slack.posted("C0DEV").filter(m => m.ts > asked.ts).every(m => m.thread === asked.ts));
 
   slack.failNext(c => c.method === "chat.startStream" || c.method === "chat.postMessage", 429, "ratelimited", { retryAfter: 0.2 });
   slack.message({ channel: "D0ANN", user: "U0ANN", text: "limited" });
