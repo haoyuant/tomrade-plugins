@@ -38,7 +38,7 @@ it("is a terminal-only agent with Model and Effort picks, found beside the Antig
     { key: "effort", title: "Effort", choices: [{ value: "low" }, { value: "medium" }, { value: "high" }, { value: "xhigh" }, { value: "max" }] }
   ]);
   expect(agy.install).toBe("install the Antigravity CLI ({install}) and sign in");
-  expect(agy.setup).toMatchObject({ signIn: "agy", signInRuns: true, docs: "https://antigravity.google/docs/cli" });
+  expect(agy.setup).toMatchObject({ signIn: "agy", signInRuns: true, docs: "https://antigravity.google/docs/cli", download: "https://antigravity.google/download", desktop: { title: "Antigravity", shipsCli: false } });
 });
 
 describe("installing it", () => {

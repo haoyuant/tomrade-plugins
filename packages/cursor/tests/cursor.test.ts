@@ -36,7 +36,7 @@ describe("Cursor as an engine", () => {
     expect(cursor.acp).toBeUndefined();
     expect(cursor).toMatchObject({ id: "cursor", title: "Cursor", cli: { name: "cursor-agent", desktopApp: { title: "Cursor", mac: ["Cursor"], windows: ["Programs\\cursor"] } }, lend: { rank: 80 } });
     expect(cursor.picks).toEqual([{ key: "model", title: "Model", choices: [], freeText: true }]);
-    expect(cursor.setup).toMatchObject({ signIn: "cursor-agent login", docs: "https://cursor.com/docs/cli/overview" });
+    expect(cursor.setup).toMatchObject({ signIn: "cursor-agent login", docs: "https://cursor.com/docs/cli/overview", download: "https://cursor.com/download", desktop: { title: "Cursor", shipsCli: false } });
     expect(cursor.setup?.install).toEqual([process.platform === "win32" ? { powershell: "https://cursor.com/install?win32=true" } : { script: "https://cursor.com/install" }]);
     expect(cursor.install).toBe("install Cursor's CLI ({install}) and sign in");
     expect(cursor.options).toBeUndefined();

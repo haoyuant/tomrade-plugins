@@ -22,7 +22,9 @@ export const cursor: LocalAgentSpec = {
   setup: {
     install: [process.platform === "win32" ? { powershell: "https://cursor.com/install?win32=true" } : { script: "https://cursor.com/install" }],
     signIn: "cursor-agent login",
-    docs: "https://cursor.com/docs/cli/overview"
+    docs: "https://cursor.com/docs/cli/overview",
+    download: "https://cursor.com/download",
+    desktop: { title: "Cursor", shipsCli: false }
   },
   picks: [{ key: "model", title: "Model", choices: [], freeText: true }],
   probe: { args: ["status"], says: (output) => cursorSignedIn(output), reason: "Cursor's CLI is not signed in — run `cursor-agent login`" },

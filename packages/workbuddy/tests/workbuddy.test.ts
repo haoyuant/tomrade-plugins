@@ -96,7 +96,7 @@ it("runs `codebuddy --acp`, bypassing its prompts only for a full-access turn, a
   expect(acp.permissionModes).toEqual({ default: "full-access", choices: [{ value: "full-access", label: "Full access" }, { value: "ask", label: "Ask permissions" }, { value: "read-only", label: "Read only" }] });
   expect(workbuddy).toMatchObject({ id: "workbuddy", title: "WorkBuddy", cli: { name: "codebuddy" }, signIn: "run `codebuddy` and /login with your WorkBuddy account", lend: { rank: 20 } });
   expect(workbuddy.install).toBe("install WorkBuddy (workbuddy.ai), or its CLI with {install}");
-  expect(workbuddy.setup).toEqual({ install: ["npm install -g @tencent-ai/codebuddy-code"], signIn: "codebuddy", signInRuns: true, docs: "https://www.workbuddy.ai/docs/cli/overview" });
+  expect(workbuddy.setup).toEqual({ install: ["npm install -g @tencent-ai/codebuddy-code"], signIn: "codebuddy", signInRuns: true, docs: "https://www.workbuddy.ai/docs/cli/overview", download: "https://www.codebuddy.ai/docs/cli/installation", desktop: { title: "WorkBuddy", shipsCli: false } });
   expect(WorkBuddyOptions.parse({})).toEqual({ command: "codebuddy" });
   const catalog = { models: [] as { value: string }[], efforts: [] };
   expect(workbuddy.probe!.args).toEqual(["--help"]);

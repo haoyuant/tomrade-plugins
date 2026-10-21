@@ -19,7 +19,7 @@ it("registers Gemini CLI as a local agent", async () => {
 it("registers Gemini CLI as an in-app agent that also takes a ticket in a terminal", () => {
   const acp = gemini.acp!;
   expect(gemini).toMatchObject({ id: "gemini", title: "Gemini CLI", cli: { name: "gemini" }, lend: { rank: 40 } });
-  expect(gemini.setup).toEqual({ install: ["npm install -g @google/gemini-cli"], signIn: "gemini", signInRuns: true, docs: "https://github.com/google-gemini/gemini-cli" });
+  expect(gemini.setup).toEqual({ install: ["npm install -g @google/gemini-cli"], signIn: "gemini", signInRuns: true, docs: "https://github.com/google-gemini/gemini-cli", download: "https://geminicli.com/docs/get-started/installation/" });
   expect(gemini.install.replace("{install}", "npm install -g @google/gemini-cli")).toBe("install Gemini CLI (npm install -g @google/gemini-cli) and sign in");
   expect(acp).toMatchObject({ permissionModes: { default: "full-access" }, reopen: "never", usage: "turn", terminal: true });
   expect(acp.permissionModes.choices.map((c) => c.value)).toEqual(["full-access", "ask", "read-only"]);

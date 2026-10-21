@@ -111,7 +111,7 @@ export const workbuddy: LocalAgentSpec<WorkBuddyOptions> = {
   cli: { name: "codebuddy", bundled: workbuddyApps },
   install: "install WorkBuddy (workbuddy.ai), or its CLI with {install}",
   // The WorkBuddy app's own copy of the CLI is found without any install; inside codebuddy, /login signs in.
-  setup: { install: ["npm install -g @tencent-ai/codebuddy-code"], signIn: "codebuddy", signInRuns: true, docs: "https://www.workbuddy.ai/docs/cli/overview" },
+  setup: { install: ["npm install -g @tencent-ai/codebuddy-code"], signIn: "codebuddy", signInRuns: true, docs: "https://www.workbuddy.ai/docs/cli/overview", download: "https://www.codebuddy.ai/docs/cli/installation", desktop: { title: "WorkBuddy", shipsCli: false } },
   options: WorkBuddyOptions,
   acp: {
     permissionModes: { default: "full-access", choices: [PERMISSION_CHOICES["full-access"], PERMISSION_CHOICES.ask, PERMISSION_CHOICES["read-only"]] },

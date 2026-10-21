@@ -1,6 +1,6 @@
 {
   "id": "tomrade/gemini-cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "title": "Gemini CLI",
   "description": "Google's Gemini CLI as a coding agent in Tomrade: conversations and tickets run on your own Gemini CLI over ACP with Tomrade's tools, a ticket can also go to Gemini CLI in a terminal, and its sign-in answers Tomrade's background calls.",
   "license": "Apache-2.0",
