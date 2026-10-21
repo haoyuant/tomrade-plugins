@@ -43,7 +43,7 @@ export class FakeSlack {
   noHistory = false;
   private ids = 0;
   private clock = 1_700_000_000;
-  private fail: { match: (c: FakeCall) => boolean; status: number; error: string; retryAfter?: number; times: number }[] = [];
+  private fail: { match: (c: FakeCall) => boolean; status: number; error: string; retryAfter?: number; needed?: string; times: number }[] = [];
 
   get live() { const s = this.sockets.filter(s => s.readyState === 1).at(-1); return s ?? null; }
   /** Failures set with failNext that have not happened yet. */
@@ -59,8 +59,8 @@ export class FakeSlack {
   ts() { return `${this.clock}.${String(++this.ids).padStart(6, "0")}`; }
 
   /** Answers the next calls `match` picks with `status` and Slack's `error` (a 429 carries Retry-After, in seconds). */
-  failNext(match: (c: FakeCall) => boolean, status: number, error: string, opts: { retryAfter?: number; times?: number } = {}) {
-    this.fail.push({ match, status, error, ...(opts.retryAfter !== undefined ? { retryAfter: opts.retryAfter } : {}), times: opts.times ?? 1 });
+  failNext(match: (c: FakeCall) => boolean, status: number, error: string, opts: { retryAfter?: number; times?: number; needed?: string } = {}) {
+    this.fail.push({ match, status, error, ...(opts.retryAfter !== undefined ? { retryAfter: opts.retryAfter } : {}), ...(opts.needed ? { needed: opts.needed } : {}), times: opts.times ?? 1 });
   }
 
   /** The connection breaks without a word. */
@@ -171,7 +171,7 @@ export class FakeSlack {
     const failing = this.fail.find(f => f.times > 0 && f.match(call));
     if (failing) {
       failing.times--;
-      return json({ ok: false, error: failing.error }, failing.status, failing.retryAfter !== undefined ? { "retry-after": String(failing.retryAfter) } : {});
+      return json({ ok: false, error: failing.error, ...(failing.needed ? { needed: failing.needed } : {}) }, failing.status, failing.retryAfter !== undefined ? { "retry-after": String(failing.retryAfter) } : {});
     }
     if (method === "apps.connections.open") {
       if (token !== this.appToken) return json({ ok: false, error: token === this.botToken ? "not_allowed_token_type" : "invalid_auth" });

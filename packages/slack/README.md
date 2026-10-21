@@ -4,6 +4,27 @@ Talk to a Tomrade project's assistant from Slack: direct messages and the app's 
 
 Set it up in Settings → IM → Connect a bot → Slack. The wizard has the app manifest to paste at api.slack.com/apps (Socket Mode, events, scopes, interactivity, the `/tomrade` command and the agent view) and the steps after it; only the App-Level Token (`xapp-…`, `connections:write`) and the Bot Token (`xoxb-…`) are needed, and they are stored encrypted on this computer. Socket Mode apps serve the workspace that made them and cannot be listed in the Slack Marketplace.
 
+## Use it in channels
+
+1. **Connect and pair.** Create the app from the manifest in Settings → IM → Connect a bot → Slack, paste its two tokens and save; then send the bot the pairing code from Tomrade in a direct message.
+2. **Invite the bot.** In the channel, type `/invite @` and the bot's name. Slack lets a bot post only in channels it was invited to.
+3. **Allow it.** @mention the bot in the channel and choose **Work**, **Status** or **Chat**. A channel hears nothing until it is allowed, and your direct messages never get ticket threads.
+4. **Work.** Move a ticket to Doing or Verifying: in a work channel it gets a message of its own whose thread carries the ticket's news, rewritten as it moves and marked ✅ once it is done.
+
+What each feature needs (all in the manifest):
+
+| Feature | Scopes |
+|---|---|
+| @mentions, answers, a thread per ticket | `app_mentions:read`, `chat:write` |
+| Direct messages and the agent view's status | `im:history`, `assistant:write` |
+| 👀 / ✅ on your messages | `reactions:write` |
+| Files both ways | `files:read`, `files:write` |
+| People's names | `users:read` |
+| `/tomrade` | `commands` |
+| Follow-ups in a thread without @, and threads known after a restart | `channels:history`, `groups:history` (optional) |
+
+When Slack refuses something because the bot is not in a channel (`not_in_channel`) or the app lacks a scope (`missing_scope`), it is said once, with the `/invite` to type or the scope to add, in the channel or, when the bot cannot post there, in your direct message; Settings → IM shows it on the connection. Once a call works there again, it is cleared.
+
 What the adapter does:
 
 - Socket Mode: asks `apps.connections.open` for an address, waits for `hello`, and acknowledges every envelope the moment it arrives, so buttons and commands are answered inside Slack's three seconds. A `disconnect` (or a socket that has been quiet for five minutes, which may have died in a sleep) brings up a fresh connection before the old one is let go; a drop reconnects with backoff. Slack redelivers what went unacknowledged; a redelivered event is passed on once.
