@@ -29,6 +29,8 @@ export class FakeDiscord {
   readonly messages = new Map<string, { channel: string; body: Record<string, unknown> }>();
   /** Channel types the REST answers with; a channel left out is a text channel. */
   readonly channelTypes = new Map<string, number>();
+  /** Each server's channels and categories, as `GET /guilds/:id/channels` lists them. */
+  readonly guildChannels = new Map<string, { id: string; type: number; name: string; parent_id?: string | null; topic?: string | null }[]>();
   /** Threads the bot opened or edited: their parent and last edit. */
   readonly threads = new Map<string, { parent: string; body: Record<string, unknown> }>();
 
@@ -69,9 +71,10 @@ export class FakeDiscord {
     return d;
   }
 
-  interaction(o: { type: number; channel: string; user: string; guild?: string; data: Record<string, unknown> }) {
+  interaction(o: { type: number; channel: string; user: string; guild?: string; data: Record<string, unknown>; locale?: string; appPermissions?: bigint }) {
     const id = this.id();
-    const d = { id, application_id: this.appId, type: o.type, token: `itoken-${id}`, channel_id: o.channel, ...(o.guild ? { guild_id: o.guild, member: { user: this.user(o.user) } } : { user: this.user(o.user) }), data: o.data };
+    const d = { id, application_id: this.appId, type: o.type, token: `itoken-${id}`, channel_id: o.channel, ...(o.guild ? { guild_id: o.guild, member: { user: this.user(o.user) } } : { user: this.user(o.user) }), data: o.data,
+      ...(o.locale ? { locale: o.locale } : {}), ...(o.appPermissions !== undefined ? { app_permissions: String(o.appPermissions) } : {}) };
     this.dispatch("INTERACTION_CREATE", d);
     return d;
   }
@@ -141,6 +144,12 @@ export class FakeDiscord {
     }
     if (method === "PATCH" && /^\/webhooks\/\d+\/[^/]+\/messages\/@original$/.test(path)) return json({ id: this.id() });
     if (method === "GET" && (m = /^\/channels\/(\d+)$/.exec(path))) return json({ id: m[1], type: this.channelTypes.get(m[1]!) ?? 0 });
+    if (method === "GET" && (m = /^\/guilds\/(\d+)\/channels$/.exec(path))) return json(this.guildChannels.get(m[1]!) ?? []);
+    if (method === "POST" && (m = /^\/guilds\/(\d+)\/channels$/.exec(path))) {
+      const channel = { id: this.id(), type: Number(body?.type ?? 0), name: String(body?.name), parent_id: (body?.parent_id as string | undefined) ?? null, topic: (body?.topic as string | undefined) ?? null };
+      this.guildChannels.set(m[1]!, [...this.guildChannels.get(m[1]!) ?? [], channel]);
+      return json(channel);
+    }
     if (method === "POST" && (m = /^\/channels\/(\d+)\/threads$/.exec(path))) {
       const id = this.id();
       const post = [15, 16].includes(this.channelTypes.get(m[1]!) ?? 0);

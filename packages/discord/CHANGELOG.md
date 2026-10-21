@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+
+- `/tomrade setup`, run in a server by the person paired with Tomrade, creates a **Tomrade** category with `#tomrade-work` (a thread per ticket being worked), `#tomrade-status` (news only) and `#tomrade-chat` (talk to the assistant), in the person's language, and allows each with that preset (SDK 0.2.21). Channels it made before, found by the mark in their topic, and channels of those names are reused; nothing is deleted, so a rerun only puts back what is missing. With several projects it takes a `project` option (autocompleted), and a second project set up in the same server gets channels named after it. Without **Manage Channels** it says so with the install link; anyone not paired gets a polite refusal. On an older Tomrade the subcommand is not offered.
+- The install link also asks for **Manage Channels**, optional: untick it if you will create the channels yourself.
+
 ## 0.3.0
 
 - An install link: once connected, the connection in Settings → IM shows **Add the bot to a server**, and the pairing reply carries it. It asks for exactly the permissions the setup lists, with the `bot` and `applications.commands` scopes; the Developer Portal's Installation page is only the fallback.
