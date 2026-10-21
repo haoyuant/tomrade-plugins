@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { ImDeliveryError, type ImAdapter, type ImAdapterSession, type ImAddress, type ImCapabilities, type ImCommand, type ImContextMessage, type ImDelivery, type ImInbound, type ImLink } from "@tomradex/plugin-sdk";
 import { Gateway, net, type Net } from "./gateway.js";
+import { projectChoices, setUp, setupCommand, setupOf } from "./setup.js";
 import { actorOf, addressOf, API, installLink, INTENTS, inboundMessage, isThread, MESSAGE_CONTENT, messageOf, parseControl, REACTIONS, threadName, threadOf, wantsContent, type DInteraction, type DMessage, type DOption, type Permission } from "./wire.js";
 
 export const CAPABILITIES: ImCapabilities = {
@@ -55,7 +56,8 @@ const UNABLE: Record<Permission, { en: string; zh: string }> = {
   "Read Message History": { en: "read the history", zh: "读取历史消息" },
   "Embed Links": { en: "show cards", zh: "显示卡片" },
   "Attach Files": { en: "attach files", zh: "附加文件" },
-  "Add Reactions": { en: "react to messages", zh: "给消息加表情" }
+  "Add Reactions": { en: "react to messages", zh: "给消息加表情" },
+  "Manage Channels": { en: "create channels", zh: "创建频道" }
 };
 
 /** Remembers the most recent `max` entries. */
@@ -69,14 +71,14 @@ class Recent<V> extends Map<string, V> {
   }
 }
 
-/** The `/tomrade` command: one subcommand per IM command, with free text after it. */
-function commandsOf(commands: ImCommand[]) {
+/** The `/tomrade` command: one subcommand per IM command, with free text after it, and the adapter's own `extra`. */
+function commandsOf(commands: ImCommand[], extra: Record<string, unknown>[] = []) {
   return [{
     name: "tomrade", type: 1, description: "Tomrade", contexts: [0, 1], integration_types: [0],
-    options: commands.slice(0, 25).map(c => ({
+    options: [...commands.slice(0, 25 - extra.length).map(c => ({
       type: 1, name: c.name.toLowerCase().slice(0, 32), description: c.description.slice(0, 100) || c.name,
       ...(c.args ? { options: [{ type: 3, name: "args", description: c.args.slice(0, 100), required: false }] } : {})
-    }))
+    })), ...extra]
   }];
 }
 
@@ -128,6 +130,15 @@ export async function openDiscord(connectionId: string, io: IO, opts: { net?: Ne
   const onInteraction = (i: DInteraction) => {
     const user = i.member?.user ?? i.user;
     if (!user || !i.channel_id) return;
+    if (i.type === 4 && setupOf(i)) { void answer(i, { type: 8, data: { choices: projectChoices(io, i, user.id) } }); return; }
+    if (i.type === 2 && setupOf(i)) {
+      // Only the person who ran it sees how it went.
+      void answer(i, { type: 5, data: { flags: 64 } }).then(() => later(async () => {
+        const said = await setUp(io, rest, i, user.id, installLink(applicationId), learnChannel);
+        await rest("PATCH", `/webhooks/${applicationId}/${i.token}/messages/@original`, { content: said, allowed_mentions: { parse: [] } }).catch(() => null);
+      }));
+      return;
+    }
     if (i.type === 2 && i.data?.name === "tomrade") {
       void answer(i, { type: 5 }).then(() => later(async () => {
         await ensureChannel(i.guild_id, i.channel_id);
@@ -319,7 +330,7 @@ export async function openDiscord(connectionId: string, io: IO, opts: { net?: Ne
     },
 
     async commands(list) {
-      await rest("PUT", `/applications/${applicationId}/commands`, commandsOf(list));
+      await rest("PUT", `/applications/${applicationId}/commands`, commandsOf(list, setupCommand(io)));
     },
 
     close() {

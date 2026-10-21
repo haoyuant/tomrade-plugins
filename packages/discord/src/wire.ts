@@ -11,19 +11,25 @@ export interface DMessage {
 export interface DInteraction {
   id: string; application_id: string; type: number; token: string; channel_id?: string; guild_id?: string;
   member?: { user: DUser }; user?: DUser;
+  /** The person's language, and what the bot may do in this channel, as a bit field. */
+  locale?: string; app_permissions?: string;
   data?: { name?: string; options?: DOption[]; custom_id?: string; component_type?: number; values?: string[];
     components?: { components: { custom_id: string; value: string }[] }[] };
 }
-export interface DOption { name: string; type: number; value?: string; options?: DOption[] }
+export interface DOption { name: string; type: number; value?: string; focused?: boolean; options?: DOption[] }
 
 export const API = "https://discord.com/api/v10";
 
-/** What the bot is granted: the names setup lists, and the bits its install link asks for. */
+/**
+ * What the bot is granted: the names setup lists, and the bits its install link asks for. Manage Channels is only for
+ * `/tomrade setup`; the person may untick it when adding the bot.
+ */
 export const PERMISSIONS = [
   ["View Channels", 1n << 10n], ["Send Messages", 1n << 11n], ["Send Messages in Threads", 1n << 38n],
   ["Create Public Threads", 1n << 35n], ["Manage Threads", 1n << 34n], ["Read Message History", 1n << 16n],
-  ["Embed Links", 1n << 14n], ["Attach Files", 1n << 15n], ["Add Reactions", 1n << 6n]
+  ["Embed Links", 1n << 14n], ["Attach Files", 1n << 15n], ["Add Reactions", 1n << 6n], ["Manage Channels", 1n << 4n]
 ] as const;
+export const OPTIONAL_PERMISSIONS: readonly Permission[] = ["Manage Channels"];
 export type Permission = typeof PERMISSIONS[number][0];
 
 /** Adds the bot to a server with exactly those permissions and its `/tomrade` command. */

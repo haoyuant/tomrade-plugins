@@ -14,7 +14,8 @@ const GUILD = "77";
 const CHANNEL = "30";
 const THREAD = "31";
 
-async function connect(discord = new FakeDiscord(), opts: { token?: string; outbound?: Record<string, Uint8Array>; olderHost?: boolean } = {}) {
+type Host = Pick<Parameters<typeof openDiscord>[1], "projects" | "allow">;
+async function connect(discord = new FakeDiscord(), opts: { token?: string; outbound?: Record<string, Uint8Array>; olderHost?: boolean; host?: Host } = {}) {
   const events: ImInbound[] = [];
   const states: string[] = [];
   /** What the adapter told the host: notices, and `clear:<key>` once their cause went. */
@@ -26,7 +27,8 @@ async function connect(discord = new FakeDiscord(), opts: { token?: string; outb
     receive: async e => { events.push(e); return { receiptId: `r${events.length}` }; },
     status: s => { states.push(s); },
     readOutboundFile: async id => opts.outbound?.[id] ?? new Uint8Array(),
-    ...(opts.olderHost ? {} : { notice: (n: ImNotice) => { notices.push(n); }, clearNotice: (key: string) => { notices.push(`clear:${key}`); } })
+    ...(opts.olderHost ? {} : { notice: (n: ImNotice) => { notices.push(n); }, clearNotice: (key: string) => { notices.push(`clear:${key}`); } }),
+    ...opts.host
   }, { net: discord.net(), backoffMs: 10 });
   const handle = { discord, session, events, states, notices, close: () => { ac.abort(); void session.close(); } };
   open.push(handle);
@@ -272,7 +274,8 @@ describe("adding the bot and its permissions", () => {
   /** Discord's documented bits for each permission the setup lists. */
   const BITS: Record<string, bigint> = {
     "View Channels": 1n << 10n, "Send Messages": 1n << 11n, "Send Messages in Threads": 1n << 38n, "Create Public Threads": 1n << 35n,
-    "Manage Threads": 1n << 34n, "Read Message History": 1n << 16n, "Embed Links": 1n << 14n, "Attach Files": 1n << 15n, "Add Reactions": 1n << 6n
+    "Manage Threads": 1n << 34n, "Read Message History": 1n << 16n, "Embed Links": 1n << 14n, "Attach Files": 1n << 15n, "Add Reactions": 1n << 6n,
+    "Manage Channels": 1n << 4n
   };
   const room = { tenantId: GUILD, conversationId: CHANNEL };
   const TITLE = "TOM-42 · Doing · Fix the login page";
@@ -280,7 +283,8 @@ describe("adding the bot and its permissions", () => {
   it("offers an install link, once connected, asking for exactly the permissions setup lists", async () => {
     let adapter: ImAdapter | undefined;
     await plugin.apply({ im: { register: async (a: ImAdapter) => { adapter = a; return () => {}; } } } as never, undefined as never);
-    const listed = adapter!.setup!.permissions!;
+    const listed = adapter!.setup!.permissions!.map(p => p.replace(/ \(optional: .*\)$/, ""));
+    expect(adapter!.setup!.permissions).toContain("Manage Channels (optional: /tomrade setup)");
     expect(listed.every(name => BITS[name] !== undefined)).toBe(true);
     const bits = listed.reduce((sum, name) => sum | BITS[name]!, 0n);
     const { session } = await connect();
@@ -334,5 +338,128 @@ describe("adding the bot and its permissions", () => {
     await until("the line in the channel", () => posted(discord, CHANNEL).length === 1);
     await new Promise(r => setTimeout(r, 20));
     expect(posted(discord, CHANNEL)).toEqual([{ content: expect.stringMatching(/missing the \*\*Create Public Threads\*\* permission[\s\S]*Add the bot to a server: https:\/\/discord\.com\/oauth2\/authorize/), allowed_mentions: { parse: [] } }]);
+  });
+});
+
+describe("/tomrade setup", () => {
+  const LOGIN = { id: "p1", name: "Login" };
+  const SHOP = { id: "p2", name: "Web Shop" };
+  /** Tomrade as the adapter sees it: the owner is paired, and each allowed conversation is remembered. */
+  const host = (projects = [LOGIN]) => {
+    const allowed: { conversationId: string; kind: string; projectId: string }[] = [];
+    const io: Host = {
+      projects: actorId => actorId === OWNER ? projects : [],
+      allow: r => { if (r.actorId !== OWNER) return false; allowed.push({ conversationId: r.address.conversationId, kind: r.kind, projectId: r.projectId }); return true; }
+    };
+    return { io, allowed };
+  };
+  const setup = (discord: FakeDiscord, o: { user?: string; project?: string; locale?: string; appPermissions?: bigint } = {}) => discord.interaction({ type: 2, channel: CHANNEL, guild: GUILD, user: o.user ?? OWNER,
+    data: { name: "tomrade", options: [{ type: 1, name: "setup", options: o.project ? [{ type: 3, name: "project", value: o.project }] : [] }] },
+    ...(o.locale ? { locale: o.locale } : {}), ...(o.appPermissions !== undefined ? { appPermissions: o.appPermissions } : {}) });
+  const reply = async (discord: FakeDiscord, n: number) => {
+    await until("the reply", () => discord.where("PATCH", /^\/webhooks\/800\/itoken-\d+\/messages\/@original$/).length === n);
+    return discord.where("PATCH", /@original$/).at(-1)!.body!.content as string;
+  };
+  const made = (discord: FakeDiscord) => discord.where("POST", new RegExp(`^/guilds/${GUILD}/channels$`)).map(c => c.body);
+
+  it("is registered only where Tomrade can allow the channels it makes", async () => {
+    for (const [io, has] of [[host().io, true], [undefined, false]] as const) {
+      const { discord, session } = await connect(new FakeDiscord(), io ? { host: io } : {});
+      await session.commands!([{ name: "status", description: "What is running" }]);
+      const [command] = discord.where("PUT", /\/commands$/)[0]!.body as unknown as { options: { name: string; options?: { name: string; autocomplete?: boolean }[] }[] }[];
+      expect(command!.options.map(o => o.name)).toEqual(has ? ["status", "setup"] : ["status"]);
+      if (has) expect(command!.options[1]!.options).toMatchObject([{ name: "project", autocomplete: true }]);
+    }
+  });
+
+  it("creates a Tomrade category with the work, status and chat channels, allows each, and says what they are for", async () => {
+    const { io, allowed } = host();
+    const { discord } = await connect(new FakeDiscord(), { host: io });
+    const i = setup(discord, { appPermissions: 1n << 4n });
+    const said = await reply(discord, 1);
+    expect(discord.where("POST", new RegExp(`^/interactions/${i.id}/`))[0]!.body).toEqual({ type: 5, data: { flags: 64 } });
+    const [category, ...channels] = made(discord);
+    expect(category).toEqual({ name: "Tomrade", type: 4 });
+    expect(channels.map(c => c!.name)).toEqual(["tomrade-work", "tomrade-status", "tomrade-chat"]);
+    expect(channels.map(c => c!.topic)).toEqual([
+      "Tomrade: a thread for each ticket of Login being worked · tomrade:p1:work",
+      "Tomrade: news of Login's tickets and code · tomrade:p1:status",
+      "Tomrade: talk to Login's assistant by @mentioning the bot · tomrade:p1:chat"]);
+    const ids = discord.guildChannels.get(GUILD)!.filter(c => c.type === 0).map(c => c.id);
+    expect(channels.every(c => c!.parent_id === discord.guildChannels.get(GUILD)![0]!.id)).toBe(true);
+    expect(allowed).toEqual([{ conversationId: ids[0], kind: "work", projectId: "p1" }, { conversationId: ids[1], kind: "status", projectId: "p1" }, { conversationId: ids[2], kind: "chat", projectId: "p1" }]);
+    expect(said).toBe([`Tomrade is set up for **Login**:`, `<#${ids[0]}> — a thread for each ticket being worked`,
+      `<#${ids[1]}> — ticket and code news, routines, and when Tomrade comes online or goes offline`, `<#${ids[2]}> — @mention me to talk to the assistant`,
+      "Run /tomrade setup again any time to put back what is missing; change what each channel hears in Tomrade's IM settings."].join("\n"));
+  });
+
+  it("names the channels in the person's language", async () => {
+    const { discord } = await connect(new FakeDiscord(), { host: host().io });
+    setup(discord, { locale: "zh-CN" });
+    expect(await reply(discord, 1)).toMatch(/^Tomrade 已为 \*\*Login\*\* 设置好：/);
+    expect(made(discord).slice(1).map(c => c!.name)).toEqual(["tomrade-工作", "tomrade-状态", "tomrade-聊天"]);
+  });
+
+  it("run again, creates nothing; a deleted channel comes back and is allowed again; a channel of that name is reused", async () => {
+    const discord = new FakeDiscord();
+    discord.guildChannels.set(GUILD, [{ id: "60", type: 0, name: "tomrade-chat", parent_id: null, topic: null }]);
+    const { io, allowed } = host();
+    await connect(discord, { host: io });
+    setup(discord);
+    await reply(discord, 1);
+    expect(made(discord).map(c => c!.name)).toEqual(["Tomrade", "tomrade-work", "tomrade-status"]);
+    expect(allowed.map(a => a.conversationId).at(-1)).toBe("60");
+
+    setup(discord);
+    await reply(discord, 2);
+    expect(made(discord)).toHaveLength(3);
+    expect(allowed).toHaveLength(6);
+
+    const status = discord.guildChannels.get(GUILD)!.find(c => c.name === "tomrade-status")!;
+    discord.guildChannels.set(GUILD, discord.guildChannels.get(GUILD)!.filter(c => c !== status));
+    setup(discord);
+    await reply(discord, 3);
+    expect(made(discord).map(c => c!.name)).toEqual(["Tomrade", "tomrade-work", "tomrade-status", "tomrade-status"]);
+    const again = discord.guildChannels.get(GUILD)!.find(c => c.name === "tomrade-status")!;
+    expect(again.parent_id).toBe(discord.guildChannels.get(GUILD)!.find(c => c.type === 4)!.id);
+    expect(allowed.at(-2)).toEqual({ conversationId: again.id, kind: "status", projectId: "p1" });
+  });
+
+  it("explains, with the install link, when it may not create channels", async () => {
+    const { discord } = await connect(new FakeDiscord(), { host: host().io });
+    setup(discord, { appPermissions: (1n << 10n) | (1n << 11n) });
+    expect(await reply(discord, 1)).toBe(`I can't create channels here: the bot is missing the **Manage Channels** permission. Add the bot again with this link, keeping Manage Channels ticked, then run /tomrade setup again:\n${installLink("800")}`);
+    expect(made(discord)).toEqual([]);
+    discord.failNext(c => c.method === "POST" && c.path === `/guilds/${GUILD}/channels`, 403, { code: 50013 });
+    setup(discord);
+    expect(await reply(discord, 2)).toMatch(/missing the \*\*Manage Channels\*\* permission/);
+  });
+
+  it("politely refuses someone not paired, and says what to do on an older Tomrade", async () => {
+    const { io, allowed } = host();
+    const { discord } = await connect(new FakeDiscord(), { host: io });
+    setup(discord, { user: "502" });
+    expect(await reply(discord, 1)).toBe("Only the person paired with Tomrade can set up its channels. Pair first: send me a direct message with the code from Tomrade's IM settings.");
+    expect(made(discord)).toEqual([]);
+    expect(allowed).toEqual([]);
+    const older = await connect(new FakeDiscord());
+    setup(older.discord);
+    expect(await reply(older.discord, 1)).toMatch(/^This needs a newer Tomrade/);
+  });
+
+  it("with several projects, completes the project option and names channels after the project when another is set up here", async () => {
+    const { io, allowed } = host([LOGIN, SHOP]);
+    const { discord } = await connect(new FakeDiscord(), { host: io });
+    const ask = discord.interaction({ type: 4, channel: CHANNEL, guild: GUILD, user: OWNER,
+      data: { name: "tomrade", options: [{ type: 1, name: "setup", options: [{ type: 3, name: "project", value: "sho", focused: true }] }] } });
+    await until("the choices", () => discord.where("POST", new RegExp(`^/interactions/${ask.id}/`)).length === 1);
+    expect(discord.where("POST", new RegExp(`^/interactions/${ask.id}/`))[0]!.body).toEqual({ type: 8, data: { choices: [{ name: "Web Shop", value: "p2" }] } });
+
+    setup(discord);
+    await reply(discord, 1);
+    setup(discord, { project: "p2" });
+    expect(await reply(discord, 2)).toMatch(/^Tomrade is set up for \*\*Web Shop\*\*/);
+    expect(made(discord).map(c => c!.name)).toEqual(["Tomrade", "tomrade-work", "tomrade-status", "tomrade-chat", "tomrade-work-web-shop", "tomrade-status-web-shop", "tomrade-chat-web-shop"]);
+    expect(allowed.slice(3).map(a => a.projectId)).toEqual(["p2", "p2", "p2"]);
   });
 });
