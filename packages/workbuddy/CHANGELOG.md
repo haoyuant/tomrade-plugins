@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Set up installs the CodeBuddy CLI in one click: Tomrade runs the npm install itself (the system's npm, or its own when there is none), then opens a terminal for the `/login` and watches it. Needs Tomrade with plugin SDK 0.2.26.
+
 ## 0.2.0
 
 - Ready only with the CodeBuddy CLI itself. The copy inside the WorkBuddy app gets no models when started on its own, so Tomrade no longer uses it: with only the app installed, the agent shows as not ready ("only the desktop app is installed") and says to install the CLI with `npm install -g @tencent-ai/codebuddy-code` and sign in with `/login`, instead of a session failing with "model not found".

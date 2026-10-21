@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Set up installs the DeepSeek Harness CLI in one click: Tomrade runs the npm install itself (the system's npm, or its own when there is none), then opens a terminal for `dsh web` and watches it. Needs Tomrade with plugin SDK 0.2.26.
+
 ## 0.1.1
 
 - The install guide links the official download page and says the DeepSeek Harness desktop app includes `dsh`, so installing the app is enough. Shown by Tomrade with plugin SDK 0.2.25; an older Tomrade ignores it.

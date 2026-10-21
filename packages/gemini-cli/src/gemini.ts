@@ -22,7 +22,7 @@ export const gemini: LocalAgentSpec<GeminiOptions> = {
   cli: { name: "gemini" },
   install: "install Gemini CLI ({install}) and sign in",
   // Google ended personal Google sign-in for it: individuals use an API key or Vertex AI.
-  setup: { install: ["npm install -g @google/gemini-cli"], signIn: "gemini", signInRuns: true, docs: "https://github.com/google-gemini/gemini-cli", download: "https://geminicli.com/docs/get-started/installation/" },
+  setup: { install: [{ npm: "@google/gemini-cli" }], signIn: "gemini", signInRuns: true, docs: "https://github.com/google-gemini/gemini-cli", download: "https://geminicli.com/docs/get-started/installation/" },
   options: GeminiOptions,
   acp: {
     permissionModes: { default: "full-access", choices: [PERMISSION_CHOICES["full-access"], PERMISSION_CHOICES.ask, PERMISSION_CHOICES["read-only"]] },

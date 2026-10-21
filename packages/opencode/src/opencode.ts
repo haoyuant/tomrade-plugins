@@ -21,7 +21,7 @@ export const opencode: LocalAgentSpec<OpencodeOptions> = {
   cli: { name: "opencode" },
   install: "install OpenCode ({install}) and add a provider",
   setup: {
-    install: process.platform === "win32" ? ["npm install -g opencode-ai"] : [{ script: "https://opencode.ai/install" }, "npm install -g opencode-ai"],
+    install: process.platform === "win32" ? [{ npm: "opencode-ai" }] : [{ script: "https://opencode.ai/install" }, { npm: "opencode-ai" }],
     signIn: "opencode auth login",
     signInRuns: true,
     docs: "https://opencode.ai/docs/",
