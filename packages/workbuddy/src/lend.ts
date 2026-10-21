@@ -56,8 +56,8 @@ export function codebuddyAsk(signIn: string) {
       if (!result || result.is_error || typeof result.result !== "string") {
         // Signed out, it still exits 0: the reason is the result's error, or stderr from an older CLI.
         const why = result?.errors?.join("; ") || result?.result || stderr.trim().slice(-300) || result?.subtype || `exit ${code}`;
-        if (SIGNED_OUT.test(why) || SIGNED_OUT.test(stderr)) throw new NotSignedIn(`WorkBuddy is not signed in (${why}) — ${signIn}`);
-        throw new Error(`WorkBuddy could not answer: ${why}`);
+        if (SIGNED_OUT.test(why) || SIGNED_OUT.test(stderr)) throw new NotSignedIn(`CodeBuddy is not signed in (${why}) — ${signIn}`);
+        throw new Error(`CodeBuddy could not answer: ${why}`);
       }
       // input_tokens already includes what the cache read
       const read = result.usage?.cache_read_input_tokens;
