@@ -28,7 +28,12 @@ export default definePlugin({
           { en: "Send the bot a direct message with the pairing code from Tomrade. Then run **/tomrade setup** in your server: it creates a Tomrade category with work, status and chat channels and allows them. Or @mention the bot in any channel and choose what that channel is for.", zh: "私信机器人发送 Tomrade 里的配对码。然后在服务器里运行 **/tomrade setup**：它会创建 Tomrade 分类和工作、状态、聊天三个频道并允许它们。也可以在任意频道 @ 机器人，选择这个频道的用途。" }
         ],
         permissions: PERMISSIONS.map(([name]) => OPTIONAL_PERMISSIONS.includes(name) ? `${name} (optional: /tomrade setup)` : name),
-        docsUrl: "https://discord.com/developers/applications"
+        docsUrl: "https://discord.com/developers/applications",
+        groupSteps: [
+          { en: "Add the bot to your server with **Add the bot to a server** on this connection; it asks for exactly the permissions it needs.", zh: "用这个连接上的 **把机器人加到服务器** 把机器人加到你的服务器，它申请的正好是所需的权限。" },
+          { en: "In the server, run **/tomrade setup**: it creates a Tomrade category with work, status and chat channels and allows them. Or @mention the bot in any channel and choose Work, Status or Chat.", zh: "在服务器里运行 **/tomrade setup**：它会创建 Tomrade 分类和工作、状态、聊天三个频道并允许它们。也可以在任意频道 @机器人，选择工作、状态或聊天。" },
+          { en: "Move a ticket to Doing: its thread appears in the work channel.", zh: "把一个工单移到「进行中」：工作频道里就会出现它的话题。" }
+        ]
       },
       open: (connectionId, io) => openDiscord(connectionId, io)
     });
