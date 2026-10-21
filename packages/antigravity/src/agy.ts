@@ -19,7 +19,10 @@ export const agy: LocalAgentSpec = {
       : { script: "https://antigravity.google/cli/install.sh" }],
     signIn: "agy",
     signInRuns: true,
-    docs: "https://antigravity.google/docs/cli"
+    docs: "https://antigravity.google/docs/cli",
+    // The IDE's opt-in command line tool is `agy-ide`, not `agy`.
+    download: "https://antigravity.google/download",
+    desktop: { title: "Antigravity", shipsCli: false }
   },
   picks: [
     { key: "model", title: "Model", choices: [], freeText: true },

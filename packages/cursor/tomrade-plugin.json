@@ -1,6 +1,6 @@
 {
   "id": "tomrade/cursor",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "title": "Cursor",
   "description": "Cursor's CLI (cursor-agent) as a coding agent in Tomrade: a ticket goes to cursor-agent in a terminal, which reaches Tomrade through its own connection in ~/.cursor/mcp.json, and its sign-in answers Tomrade's background calls.",
   "license": "Apache-2.0",

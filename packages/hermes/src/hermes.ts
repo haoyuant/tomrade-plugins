@@ -31,7 +31,8 @@ export const hermes: LocalAgentSpec<HermesOptions> = {
       : { script: "https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh" }],
     signIn: "hermes setup",
     signInRuns: true,
-    docs: "https://hermes-agent.nousresearch.com/docs/user-guide/features/acp"
+    docs: "https://hermes-agent.nousresearch.com/docs/user-guide/features/acp",
+    download: "https://hermes-agent.nousresearch.com/docs/getting-started/installation"
   },
   options: HermesOptions,
   acp: {

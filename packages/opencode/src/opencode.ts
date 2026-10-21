@@ -24,7 +24,10 @@ export const opencode: LocalAgentSpec<OpencodeOptions> = {
     install: process.platform === "win32" ? ["npm install -g opencode-ai"] : [{ script: "https://opencode.ai/install" }, "npm install -g opencode-ai"],
     signIn: "opencode auth login",
     signInRuns: true,
-    docs: "https://opencode.ai/docs/"
+    docs: "https://opencode.ai/docs/",
+    download: "https://opencode.ai/download",
+    // Its desktop app leaves the CLI off PATH; on macOS only an action inside the app adds it.
+    desktop: { title: "OpenCode", shipsCli: false }
   },
   options: OpencodeOptions,
   acp: {
