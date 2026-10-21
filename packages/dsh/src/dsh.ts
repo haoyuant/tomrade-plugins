@@ -42,7 +42,7 @@ export const dsh: LocalAgentSpec<DshOptions> = {
   cli: { name: "dsh", bundled: dshDesktopApps },
   install: "install the DeepSeek Harness desktop app (deepseek.com/en/harness), or its CLI with {install}, and sign in or add a DeepSeek API key",
   // The desktop app is the official install and needs no command; a key or account goes under Settings → Models there, as in `dsh web`.
-  setup: { install: ["npm install -g @deepseek-ai/dsh"], signIn: "dsh web", signInRuns: true, docs: "https://www.deepseek.com/en/harness/", download: "https://www.deepseek.com/en/harness/", desktop: { title: APP, shipsCli: true } },
+  setup: { install: [{ npm: "@deepseek-ai/dsh" }], signIn: "dsh web", signInRuns: true, docs: "https://www.deepseek.com/en/harness/", download: "https://www.deepseek.com/en/harness/", desktop: { title: APP, shipsCli: true } },
   options: DshOptions,
   acp: {
     // dsh's ACP server has no modes and its own sandbox rules decide what needs asking; it asks for none of a workspace's reads and writes.

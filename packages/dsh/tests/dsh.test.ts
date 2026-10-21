@@ -29,10 +29,10 @@ const noInstalls = async () => [];
 
 it("goes by DeepSeek Harness, still as the dsh engine, and points at the official page", () => {
   expect(dsh).toMatchObject({ id: "dsh", title: "DeepSeek Harness" });
-  expect(dsh.setup).toMatchObject({ install: ["npm install -g @deepseek-ai/dsh"], signIn: "dsh web", signInRuns: true, docs: "https://www.deepseek.com/en/harness/", download: "https://www.deepseek.com/en/harness/", desktop: { title: "DeepSeek Harness", shipsCli: true } });
+  expect(dsh.setup).toMatchObject({ install: [{ npm: "@deepseek-ai/dsh" }], signIn: "dsh web", signInRuns: true, docs: "https://www.deepseek.com/en/harness/", download: "https://www.deepseek.com/en/harness/", desktop: { title: "DeepSeek Harness", shipsCli: true } });
   expect(dsh.install).toContain("desktop app");
-  // The app writes the first install command where the words say {install}: the same words as before.
-  expect(dsh.install.replace("{install}", dsh.setup!.install[0] as string)).toBe(
+  // The app writes the first install, as a command, where the words say {install}: the same words as before.
+  expect(dsh.install.replace("{install}", "npm install -g @deepseek-ai/dsh")).toBe(
     "install the DeepSeek Harness desktop app (deepseek.com/en/harness), or its CLI with npm install -g @deepseek-ai/dsh, and sign in or add a DeepSeek API key"
   );
   expect(dsh.signIn).toContain("DEEPSEEK_API_KEY");

@@ -1,6 +1,6 @@
 {
   "id": "tomrade/opencode",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "title": "OpenCode",
   "description": "OpenCode as a coding agent in Tomrade: conversations and tickets run on your own OpenCode over ACP with Tomrade's tools, a ticket can also go to OpenCode in a terminal, its own sessions report to Tomrade once connected, and its providers answer Tomrade's background calls.",
   "license": "Apache-2.0",
@@ -9,7 +9,7 @@
   },
   "repository": "https://github.com/haoyuant/tomrade-plugins",
   "engines": {
-    "sdk": "^0.2.18"
+    "sdk": "^0.2.26"
   },
   "main": "dist/index.js",
   "icon": "icon.svg",

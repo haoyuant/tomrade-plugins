@@ -82,7 +82,7 @@ export const workbuddy: LocalAgentSpec<WorkBuddyOptions> = {
   cli: { name: "codebuddy", desktopApp: WORKBUDDY_APP },
   install: "install the CodeBuddy CLI, which the WorkBuddy app does not include, with {install} (https://www.codebuddy.ai/docs/cli/installation), then run `codebuddy` and type /login",
   // Inside codebuddy, /login signs in.
-  setup: { install: ["npm install -g @tencent-ai/codebuddy-code"], signIn: "codebuddy", signInRuns: true, docs: "https://www.codebuddy.ai/docs/cli/installation", download: "https://www.codebuddy.ai/docs/cli/installation", desktop: { title: "WorkBuddy", shipsCli: false } },
+  setup: { install: [{ npm: "@tencent-ai/codebuddy-code" }], signIn: "codebuddy", signInRuns: true, docs: "https://www.codebuddy.ai/docs/cli/installation", download: "https://www.codebuddy.ai/docs/cli/installation", desktop: { title: "WorkBuddy", shipsCli: false } },
   options: WorkBuddyOptions,
   acp: {
     permissionModes: { default: "full-access", choices: [PERMISSION_CHOICES["full-access"], PERMISSION_CHOICES.ask, PERMISSION_CHOICES["read-only"]] },

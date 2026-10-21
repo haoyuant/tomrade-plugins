@@ -1,6 +1,6 @@
 {
   "id": "tomrade/dsh",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "title": "DeepSeek Harness",
   "description": "DeepSeek Harness (dsh) as a coding agent in Tomrade: conversations and tickets run on your own dsh over ACP with Tomrade's tools, found inside the DeepSeek Harness desktop app when it is not on PATH, a ticket can also go to dsh in a terminal, and its DeepSeek account or key answers Tomrade's background calls.",
   "license": "Apache-2.0",
@@ -9,7 +9,7 @@
   },
   "repository": "https://github.com/haoyuant/tomrade-plugins",
   "engines": {
-    "sdk": "^0.2.18"
+    "sdk": "^0.2.26"
   },
   "main": "dist/index.js",
   "icon": "icon.svg",

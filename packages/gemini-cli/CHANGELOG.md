@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Set up installs Gemini CLI in one click: Tomrade runs the npm install itself (the system's npm, or its own when there is none), then opens a terminal for the sign-in and watches it. Needs Tomrade with plugin SDK 0.2.26.
+
 ## 0.1.1
 
 - The install guide links Gemini CLI's official installation page. Shown by Tomrade with plugin SDK 0.2.25; an older Tomrade ignores it.
