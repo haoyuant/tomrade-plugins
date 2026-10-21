@@ -4,6 +4,24 @@ Talk to a Tomrade project's assistant from Telegram: direct chats, @mentions, re
 
 Set it up in Settings → IM → Connect a bot → Telegram. The wizard walks through @BotFather; only the bot token is needed, and it is stored encrypted on this computer. The plugin's only network permission is `api.telegram.org`.
 
+## Use it in a group
+
+1. **Connect and pair.** In Settings → IM → Connect a bot → Telegram, paste the token from @BotFather and save; then send the bot the pairing code from Tomrade in a direct chat.
+2. **Add the bot to your group.** The connection shows **Add the bot to a group**: pick the group, and Telegram asks to make the bot an admin with **Manage Topics**.
+3. **Turn on Topics** in the group's settings, for a topic per ticket. Without them the group still works, with each ticket's news as a line in the group.
+4. **Allow it.** @mention the bot in the group and choose **Work**, **Status** or **Chat**. A group hears nothing until it is allowed, and your direct chat never gets ticket topics.
+5. **Work.** Move a ticket to Doing or Verifying: in a work group with Topics, it gets a topic of its own, named with its status and closed once it is done.
+
+What each feature needs:
+
+| Feature | Needs |
+|---|---|
+| Answering @mentions, replies and commands in a group | Nothing: privacy mode (the default) lets the bot see exactly those |
+| A group's recent discussion for the assistant | Privacy mode off (`/setprivacy` → Disable at @BotFather, then add the bot to the group again) |
+| A topic per ticket | A supergroup with **Topics** on, and the bot an admin with **Manage Topics** |
+
+When a topic cannot be opened because the group has no Topics or the bot lacks Manage Topics, the group hears it once, with what to change and the link, and Settings → IM shows it on the connection. Once topics work there again, it is cleared.
+
 What the adapter does:
 
 - Long polling (`getUpdates`): the offset moves past an update only once the IM layer has stored it, so what arrives while Tomrade is closed (Telegram keeps it 24 hours) is fetched when it opens, and nothing is fetched twice. Event ids come from the message, not the update, so a message Telegram hands over again is still kept once. A dropped connection is retried with backoff; a bot whose updates go to a webhook fails to connect with a clear error, and the webhook is left alone.
