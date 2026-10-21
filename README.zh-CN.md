@@ -84,12 +84,12 @@ herdr 的插件市场通过本仓库的 `herdr-plugin` topic 收录它。官方�
 
 ## 开发
 
-这个仓库对着 Tomrade 的 `main` 构建，所以 SDK 和 CLI 来自**旁边一个名叫 `tomrade-next` 的 Tomrade 检出**：
+这个仓库对着 Tomrade 的 `main` 构建，所以 SDK 和 CLI 来自**旁边一个名叫 `tomrade` 的 Tomrade 检出**：
 
 ```sh
-git clone https://github.com/haoyuant/tomrade.git tomrade-next
+git clone https://github.com/haoyuant/tomrade.git tomrade
 git clone https://github.com/haoyuant/tomrade-plugins.git
-(cd tomrade-next && pnpm install && pnpm build:backend)
+(cd tomrade && pnpm install && pnpm build:backend)
 cd tomrade-plugins
 pnpm install
 ```
