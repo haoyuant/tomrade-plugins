@@ -40,8 +40,19 @@ describe("files", () => {
     cipher.setAutoPadding(false);
     const sealed = Buffer.concat([cipher.update(Buffer.concat([Buffer.from(plainBytes), Buffer.alloc(pad, pad)])), cipher.final()]);
     expect(Buffer.from(decrypt(sealed, key.toString("base64"))).toString()).toBe("a".repeat(40));
-    expect(() => decrypt(sealed, randomBytes(32).toString("base64"))).toThrow();
     expect(() => decrypt(sealed, "c2hvcnQ=")).toThrow(/wrong length/);
+  });
+
+  it("refuses a wrong key", () => {
+    // AES-256-CBC has no integrity check, so a wrong key's output is random and
+    // its padding is valid about once in 250 runs. The key and the wrong key
+    // are fixed because theirs is not, so this test never flips (TOM-483).
+    const key = Buffer.from("0123456789abcdef0123456789abcdef");
+    const wrongKey = Buffer.from("fedcba9876543210fedcba9876543210");
+    const cipher = createCipheriv("aes-256-cbc", key, key.subarray(0, 16));
+    cipher.setAutoPadding(false);
+    const sealed = Buffer.concat([cipher.update(Buffer.concat([Buffer.from("a".repeat(40)), Buffer.alloc(24, 24)])), cipher.final()]);
+    expect(() => decrypt(sealed, wrongKey.toString("base64"))).toThrow(/did not decrypt/);
   });
 
   it("tells a file's type from its bytes and its name from the download", () => {
