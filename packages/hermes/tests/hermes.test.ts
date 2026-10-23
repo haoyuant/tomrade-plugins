@@ -48,7 +48,10 @@ it("starts `hermes acp`, hands it Tomrade's tools over HTTP and reopens sessions
   expect(HermesOptions.parse({})).toEqual({ command: "hermes" });
 });
 
-describe("connecting Hermes' own sessions to Tomrade", () => {
+// Every hermes call here is a Node process (tests/fake-hermes.mjs), and one test
+// spawns four of them; under a full parallel run that outlasts vitest's 5s
+// default, which made "leaves a plugin folder … alone" fail at random (TOM-553).
+describe("connecting Hermes' own sessions to Tomrade", { timeout: 20_000 }, () => {
   function setup() {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tomrade-hermes-link-"));
     process.env.HERMES_HOME = path.join(dir, "home");
