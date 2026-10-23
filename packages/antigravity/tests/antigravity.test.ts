@@ -31,7 +31,8 @@ it("runs Google's ACP server with Model and Effort picks, found beside the Antig
   // An ACP engine's picks come from its sessions; the settings form asks only which server to start.
   expect(agy.picks).toBeUndefined();
   expect(agy.acp!.efforts).toEqual(["low", "medium", "high", "xhigh", "max"]);
-  expect(agy.install).toBe("install the Antigravity CLI ({install}) and sign in");
+  const server = AgyOptions.parse({}).command;
+  expect(agy.install).toBe(`download ${server} from Google's ACP releases ({install})`);
   expect(agy.setup).toMatchObject({ signIn: "agy", signInRuns: true, docs: "https://antigravity.google/docs/cli", download: "https://antigravity.google/download", desktop: { title: "Antigravity", shipsCli: false } });
 });
 
@@ -50,20 +51,40 @@ it("starts `agy_acp_server.par` with no arguments, keeps a ticket in the termina
 
 describe("installing it", () => {
   const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+  const arch = Object.getOwnPropertyDescriptor(process, "arch")!;
   afterEach(() => {
     Object.defineProperty(process, "platform", platform);
+    Object.defineProperty(process, "arch", arch);
     vi.resetModules();
   });
-  const on = async (name: string) => {
+  const on = async (name: string, processor: string) => {
     Object.defineProperty(process, "platform", { ...platform, value: name });
+    Object.defineProperty(process, "arch", { ...arch, value: processor });
     vi.resetModules();
-    return (await import("../src/agy.js")).agy.setup!.install;
+    return (await import("../src/agy.js")).agy;
   };
+  const zip = (url: string, os: string, processor: string, file: string) => ({ archive: { url, file, platform: { os, arch: processor } } });
+  const base = "https://dl.google.com/agy-extensions/releases";
+  const script = { script: "https://antigravity.google/cli/install.sh" };
+  const powershell = { powershell: "https://antigravity.google/cli/install.ps1" };
 
-  it("runs Antigravity's own installer script, in PowerShell on Windows", async () => {
-    expect(await on("darwin")).toEqual([{ script: "https://antigravity.google/cli/install.sh" }]);
-    expect(await on("linux")).toEqual([{ script: "https://antigravity.google/cli/install.sh" }]);
-    expect(await on("win32")).toEqual([{ powershell: "https://antigravity.google/cli/install.ps1" }]);
+  it("unpacks Google's ACP server first, so a conversation opens, then runs Antigravity's own installer for `agy`", async () => {
+    const set = async (name: string, processor: string) => (await on(name, processor)).setup!.install;
+    expect(await set("darwin", "arm64")).toEqual([zip(`${base}/macos/agy-acp-server-1.4.1-darwin-arm64.zip`, "darwin", "arm64", "agy_acp_server.par"), script]);
+    expect(await set("darwin", "x64")).toEqual([zip(`${base}/macos/agy-acp-server-1.4.1-darwin-x86_64.zip`, "darwin", "x64", "agy_acp_server.par"), script]);
+    expect(await set("linux", "x64")).toEqual([zip(`${base}/linux/agy-acp-server-1.4.1-linux-x86_64.zip`, "linux", "x64", "agy_acp_server.par"), script]);
+    expect(await set("linux", "arm64")).toEqual([zip(`${base}/linux/agy-acp-server-1.4.1-linux-arm64.zip`, "linux", "arm64", "agy_acp_server.par"), script]);
+    expect(await set("win32", "x64")).toEqual([zip(`${base}/windows/agy-acp-server-1.4.1-windows-x86_64.zip`, "win32", "x64", "agy_acp_server.exe"), powershell]);
+    expect(await set("win32", "arm64")).toEqual([zip(`${base}/windows/agy-acp-server-1.4.1-windows-arm64.zip`, "win32", "arm64", "agy_acp_server.exe"), powershell]);
+  });
+
+  it("installs only `agy` where Google publishes no server, and says which file setup is missing", async () => {
+    // No zip for these, so setup offers none rather than a step that fails.
+    expect((await on("linux", "ia32")).setup!.install).toEqual([script]);
+    expect((await on("darwin", "arm")).setup!.install).toEqual([script]);
+    // The file "not found" names is the server, and `{install}` stands for its zip.
+    expect((await on("darwin", "arm64")).install).toBe("download agy_acp_server.par from Google's ACP releases ({install})");
+    expect((await on("win32", "ia32")).install).toBe("download agy_acp_server.exe from Google's ACP releases ({install})");
   });
 });
 
