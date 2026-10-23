@@ -3,7 +3,7 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
-  "description": "Antigravity CLI (agy) as a coding agent Tomrade hands tickets to in a terminal, its sessions connected to Tomrade and its sign-in lent to the worker",
+  "description": "Antigravity CLI (agy) as a coding agent in Tomrade: conversations and tickets run on Google's ACP server for Antigravity, a ticket can also go to agy in a terminal, its sessions connected to Tomrade and its sign-in lent to the worker",
   "scripts": {
     "build": "tomrade-plugin build",
     "dev": "tomrade-plugin dev",

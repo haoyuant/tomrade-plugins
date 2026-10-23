@@ -3,7 +3,7 @@
   "namespace": "agy",
   "version": "0.1.0",
   "title": "Antigravity CLI",
-  "description": "Google's Antigravity CLI (agy) as a coding agent in Tomrade: a ticket goes to agy in a terminal, its own sessions reach Tomrade once connected, and its sign-in answers Tomrade's background calls.",
+  "description": "Google's Antigravity CLI (agy) as a coding agent in Tomrade: conversations and tickets run on Google's ACP server for Antigravity with Tomrade's tools, a ticket can also go to agy in a terminal, its own sessions reach Tomrade once connected, and its sign-in answers Tomrade's background calls.",
   "license": "Apache-2.0",
   "author": {
     "name": "Tomrade"
@@ -20,7 +20,7 @@
     "exec": true,
     "why": {
       "fs": "Reads which address the `tomrade` server has in ~/.gemini/config/mcp_config.json; after a background call it deletes that call's conversation from ~/.gemini/antigravity-cli, and runs the call from an empty temporary folder.",
-      "exec": "Runs your own `agy` command: in a terminal for a ticket, `agy mcp add` and `agy mcp remove` to connect it, and agy in print mode for background calls."
+      "exec": "Runs your own `agy` command: in a terminal for a ticket, `agy mcp add` and `agy mcp remove` to connect it, and agy in print mode for background calls; and Google's `agy_acp_server.par` (or `agy_acp_server.exe`) for conversations and tickets in Tomrade."
     }
   },
   "inject": [
