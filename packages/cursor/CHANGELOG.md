@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Cursor runs inside Tomrade over ACP: conversations and tickets go to `cursor-agent acp`, which advertises HTTP MCP, with Tomrade's tools handed to it; Full access, Ask permissions and Read only are Cursor's own. The ticket in a terminal is still there.
+
 ## 0.1.2
 
 - Set up signs in to Cursor without a terminal: Tomrade runs `cursor-agent login`, shows the sign-in link it prints, and finishes once `cursor-agent status` says signed in. Needs Tomrade with plugin SDK 0.2.26.

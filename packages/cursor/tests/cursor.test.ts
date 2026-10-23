@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { NotSignedIn, type LocalAgentOptions, type LocalAgentSpec, type PluginContext } from "@tomradex/plugin-sdk";
 import plugin from "../src/index.js";
-import { cursor, cursorSignedIn } from "../src/cursor.js";
+import { CursorOptions, cursor, cursorSignedIn } from "../src/cursor.js";
 import { cursorAsk, cursorWorkerDir } from "../src/lend.js";
 import { configuredMcpUrl, cursorMcpFile, cursorMcpLink, withMcpEntry } from "../src/link.js";
 import { MCP, fakeCli, io } from "./cli.js";
@@ -24,22 +24,29 @@ function setup(options: LocalAgentOptions = { model: "gpt-5" }, mcp = MCP) {
 }
 
 it("registers Cursor as a local agent", async () => {
-  const registered: LocalAgentSpec[] = [];
-  const ctx = { agent: { localAgent: async (spec: LocalAgentSpec) => (registered.push(spec), () => {}) } } as unknown as PluginContext;
+  const registered: LocalAgentSpec<CursorOptions>[] = [];
+  const ctx = { agent: { localAgent: async (spec: LocalAgentSpec<CursorOptions>) => (registered.push(spec), () => {}) } } as unknown as PluginContext;
   await (plugin as unknown as { apply(ctx: PluginContext): Promise<void> }).apply(ctx);
   expect(registered).toEqual([cursor]);
 });
 
 describe("Cursor as an engine", () => {
-  it("is offered for a terminal only, with a typed-in Model, its installer named by address", () => {
-    // No ACP: the conductor makes it terminal-only, reached through its own config, claiming first, and refuses an in-app turn.
-    expect(cursor.acp).toBeUndefined();
+  it("runs over `cursor-agent acp` with a typed-in Model, its installer named by address", () => {
     expect(cursor).toMatchObject({ id: "cursor", title: "Cursor", cli: { name: "cursor-agent", desktopApp: { title: "Cursor", mac: ["Cursor"], windows: ["Programs\\cursor"] } }, lend: { rank: 80 } });
     expect(cursor.picks).toEqual([{ key: "model", title: "Model", choices: [], freeText: true }]);
     expect(cursor.setup).toMatchObject({ signIn: "cursor-agent login", signInRun: { args: ["login"] }, docs: "https://cursor.com/docs/cli/overview", download: "https://cursor.com/download", desktop: { title: "Cursor", shipsCli: false } });
     expect(cursor.setup?.install).toEqual([process.platform === "win32" ? { powershell: "https://cursor.com/install?win32=true" } : { script: "https://cursor.com/install" }]);
     expect(cursor.install).toBe("install Cursor's CLI ({install}) and sign in");
-    expect(cursor.options).toBeUndefined();
+    expect(CursorOptions.parse({})).toEqual({ command: "cursor-agent" });
+  });
+
+  it("starts its ACP server, taking a ticket in a terminal through its own connection, and asks no more than the agent does", () => {
+    const acp = cursor.acp!;
+    expect(acp.args({ command: "cursor-agent" })).toEqual(["acp"]);
+    // It advertises HTTP MCP in `initialize`, so no override; it has no mode to set and no mid-turn messages.
+    expect([acp.mode, acp.httpMcp, acp.steer, acp.efforts]).toEqual([undefined, undefined, undefined, undefined]);
+    expect(acp.permissionModes.choices.map((choice) => choice.value)).toEqual(["full-access", "ask", "read-only"]);
+    expect(acp.terminal).toEqual({ via: "link" });
   });
 
   it("asks `cursor-agent status` whether it is signed in, and says how to sign in when it is not", async () => {

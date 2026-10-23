@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Antigravity runs inside Tomrade over ACP: conversations and tickets go to Google's `agy_acp_server.par` (`agy_acp_server.exe` on Windows), which advertises HTTP MCP, with Tomrade's tools handed to it and Effort from low to max. The ticket in a terminal is still there, as are `agy mcp add|remove` and print mode for background calls.
+
 ## 0.1.1
 
 - The install guide links the official download page (antigravity.google/download) and says the Antigravity IDE does not include `agy`. Shown by Tomrade with plugin SDK 0.2.25; an older Tomrade ignores it.

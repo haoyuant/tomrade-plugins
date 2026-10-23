@@ -3,7 +3,7 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
-  "description": "Cursor's CLI (cursor-agent) as a coding agent Tomrade starts in a terminal, its own sessions connected to Tomrade and its sign-in lent to the worker",
+  "description": "Cursor's CLI (cursor-agent) as a coding agent in Tomrade: conversations and tickets run on your own cursor-agent over ACP, a ticket can also go to it in a terminal, its own sessions connected to Tomrade, and its sign-in lent to the worker",
   "scripts": {
     "build": "tomrade-plugin build",
     "dev": "tomrade-plugin dev",

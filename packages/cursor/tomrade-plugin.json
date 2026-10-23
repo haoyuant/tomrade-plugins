@@ -2,7 +2,7 @@
   "id": "tomrade/cursor",
   "version": "0.1.2",
   "title": "Cursor",
-  "description": "Cursor's CLI (cursor-agent) as a coding agent in Tomrade: a ticket goes to cursor-agent in a terminal, which reaches Tomrade through its own connection in ~/.cursor/mcp.json, and its sign-in answers Tomrade's background calls.",
+  "description": "Cursor's CLI (cursor-agent) as a coding agent in Tomrade: conversations and tickets run on your own cursor-agent over ACP with Tomrade's tools, a ticket can also go to cursor-agent in a terminal, which reaches Tomrade through its own connection in ~/.cursor/mcp.json, and its sign-in answers Tomrade's background calls.",
   "license": "Apache-2.0",
   "author": {
     "name": "Tomrade"
@@ -19,7 +19,7 @@
     "exec": true,
     "why": {
       "fs": "Connecting Cursor adds a tomrade server to ~/.cursor/mcp.json (your other servers are kept), and a background call runs in a folder of its own under the temporary directory.",
-      "exec": "Runs your own `cursor-agent` command: `cursor-agent status` to see whether it is signed in, and `cursor-agent -p` in ask mode for background calls."
+      "exec": "Runs your own `cursor-agent` command: `cursor-agent acp` for conversations and tickets, `cursor-agent status` to see whether it is signed in, and `cursor-agent -p` in ask mode for background calls."
     }
   },
   "inject": [

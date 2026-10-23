@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NotSignedIn, type LocalAgentSpec, type PluginContext } from "@tomradex/plugin-sdk";
 import plugin from "../src/index.js";
-import { agy } from "../src/agy.js";
+import { AgyOptions, agy } from "../src/agy.js";
 import { agyAsk, agyDir, agyModel, agyWorkerDir } from "../src/lend.js";
 import { agyConfiguredUrl, agyMcpFile, agyMcpLink } from "../src/link.js";
 import { MCP, fakeCli, io } from "./cli.js";
@@ -20,25 +20,32 @@ afterEach(() => {
 });
 
 it("registers Antigravity CLI as a local agent", async () => {
-  const registered: LocalAgentSpec[] = [];
-  const ctx = { agent: { localAgent: async (spec: LocalAgentSpec) => (registered.push(spec), () => {}) } } as unknown as PluginContext;
+  const registered: LocalAgentSpec<AgyOptions>[] = [];
+  const ctx = { agent: { localAgent: async (spec: LocalAgentSpec<AgyOptions>) => (registered.push(spec), () => {}) } } as unknown as PluginContext;
   await (plugin as unknown as { apply(ctx: PluginContext): Promise<void> }).apply(ctx);
   expect(registered).toEqual([agy]);
 });
 
-it("is a terminal-only agent with Model and Effort picks, found beside the Antigravity app, lent after the others", () => {
+it("runs Google's ACP server with Model and Effort picks, found beside the Antigravity app, lent after the others", () => {
   expect(agy).toMatchObject({ id: "agy", title: "Antigravity CLI", cli: { name: "agy", desktopApp: { title: "Antigravity", mac: ["Antigravity"], windows: ["Programs\\Antigravity"] } }, lend: { rank: 75 } });
-  // No ACP and no settings form: Tomrade starts it only in a terminal, and engines.agy stays as the built-in kept it.
-  expect(agy.acp).toBeUndefined();
-  expect(agy.options).toBeUndefined();
-  expect(agy.probe).toBeUndefined();
-  expect(agy.signedIn).toBeUndefined();
-  expect(agy.picks).toEqual([
-    { key: "model", title: "Model", choices: [], freeText: true },
-    { key: "effort", title: "Effort", choices: [{ value: "low" }, { value: "medium" }, { value: "high" }, { value: "xhigh" }, { value: "max" }] }
-  ]);
+  // An ACP engine's picks come from its sessions; the settings form asks only which server to start.
+  expect(agy.picks).toBeUndefined();
+  expect(agy.acp!.efforts).toEqual(["low", "medium", "high", "xhigh", "max"]);
   expect(agy.install).toBe("install the Antigravity CLI ({install}) and sign in");
   expect(agy.setup).toMatchObject({ signIn: "agy", signInRuns: true, docs: "https://antigravity.google/docs/cli", download: "https://antigravity.google/download", desktop: { title: "Antigravity", shipsCli: false } });
+});
+
+it("starts `agy_acp_server.par` with no arguments, keeps a ticket in the terminal, and asks no more than the agent does", () => {
+  const acp = agy.acp!;
+  expect(acp.args(AgyOptions.parse({}))).toEqual([]);
+  expect(AgyOptions.parse({}).command).toBe(process.platform === "win32" ? "agy_acp_server.exe" : "agy_acp_server.par");
+  expect(AgyOptions.parse({ command: "/opt/agy_acp_server.par", model: "gemini-3.5-flash", effort: "high" })).toEqual({ command: "/opt/agy_acp_server.par", model: "gemini-3.5-flash", effort: "high" });
+  // It advertises HTTP MCP in `initialize`, so no override; no mode to set and no mid-turn messages.
+  expect([acp.httpMcp, acp.mode, acp.steer]).toEqual([undefined, undefined, undefined]);
+  // Non-dangerous commands run without asking, so it cannot promise a read-only turn.
+  expect(acp.permissionModes.choices.map((choice) => choice.value)).toEqual(["full-access", "ask"]);
+  expect(acp).toMatchObject({ reopen: "load", efforts: ["low", "medium", "high", "xhigh", "max"], terminal: { via: "link" } });
+  expect(agy.probe).toBeUndefined();  expect(agy.signedIn).toBeUndefined();
 });
 
 describe("installing it", () => {
