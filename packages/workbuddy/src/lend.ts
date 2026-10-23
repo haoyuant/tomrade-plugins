@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { NotSignedIn, type LentAnswer, type LentRequest, type LocalAgentIo } from "@tomradex/plugin-sdk";
+import { codebuddyConfigDir } from "./config.js";
 import type { WorkBuddyOptions } from "./workbuddy.js";
 
 // Its auto memory adds its whole manual (about 3k tokens) to every prompt, and every few prompts it titles the session.
@@ -18,9 +19,9 @@ interface PrintLine {
 }
 
 /** The model the person last picked in CodeBuddy itself, which `--setting-sources ""` would leave out. */
-export function ownModel(home = os.homedir()): string | undefined {
+export function ownModel(configDir = codebuddyConfigDir()): string | undefined {
   try {
-    const model = (JSON.parse(fs.readFileSync(path.join(home, ".codebuddy", "settings.json"), "utf8")) as { model?: unknown }).model;
+    const model = (JSON.parse(fs.readFileSync(path.join(configDir, "settings.json"), "utf8")) as { model?: unknown }).model;
     return typeof model === "string" && model.trim() ? model.trim() : undefined;
   } catch {
     return undefined;

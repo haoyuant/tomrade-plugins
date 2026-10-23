@@ -5,14 +5,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { NotSignedIn, type LocalAgentSpec, type PluginContext } from "@tomradex/plugin-sdk";
 import plugin from "../src/index.js";
 import { codebuddyFailure, codebuddyUsage, helpModels, newestLogs, WORKBUDDY_APP, WorkBuddyOptions, workbuddy } from "../src/workbuddy.js";
+import { clearRegionFile, codebuddySettingsFile, effectiveRegion, regionEnv, setRegionFile } from "../src/config.js";
 import { ownModel } from "../src/lend.js";
 import { codebuddyUserFile, workbuddyMcpLink } from "../src/link.js";
 import { MCP, fakeCli, io } from "./cli.js";
 
 const saved = process.env.CODEBUDDY_CONFIG_DIR;
+const savedRegion = process.env.CODEBUDDY_INTERNET_ENVIRONMENT;
 afterEach(() => {
   if (saved === undefined) delete process.env.CODEBUDDY_CONFIG_DIR;
   else process.env.CODEBUDDY_CONFIG_DIR = saved;
+  if (savedRegion === undefined) delete process.env.CODEBUDDY_INTERNET_ENVIRONMENT;
+  else process.env.CODEBUDDY_INTERNET_ENVIRONMENT = savedRegion;
   delete process.env.FAKE_MCP_FAIL;
   vi.restoreAllMocks();
 });
@@ -28,6 +32,27 @@ it("registers WorkBuddy as a local agent", async () => {
   const ctx = { agent: { localAgent: async (spec: LocalAgentSpec<WorkBuddyOptions>) => (registered.push(spec), () => {}) } } as unknown as PluginContext;
   await (plugin as unknown as { apply(ctx: PluginContext): Promise<void> }).apply(ctx);
   expect(registered).toEqual([workbuddy]);
+});
+
+it("writes the chosen edition on load, and takes it back when auto is chosen again", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codebuddy-apply-"));
+  process.env.CODEBUDDY_CONFIG_DIR = dir;
+  delete process.env.CODEBUDDY_INTERNET_ENVIRONMENT;
+  let region: "china" | "auto" = "china";
+  const listeners: (() => void)[] = [];
+  const read = () => JSON.parse(fs.readFileSync(codebuddySettingsFile(), "utf8")) as Record<string, unknown>;
+  const ctx = {
+    agent: { localAgent: async () => () => {} },
+    settings: { get: async (id?: string) => (id === "agent" ? { engines: { workbuddy: { region } } } : {}) },
+    logger: { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() },
+    on: (_event: string, listener: () => void) => (listeners.push(listener), () => {})
+  } as unknown as PluginContext;
+  await (plugin as unknown as { apply(ctx: PluginContext): Promise<void> }).apply(ctx);
+  expect(read()).toEqual({ env: { CODEBUDDY_INTERNET_ENVIRONMENT: "internal" } });
+
+  region = "auto";
+  listeners[0]!();
+  await vi.waitFor(() => expect(read()).toEqual({}));
 });
 
 it("reads a model request's tokens from CodeBuddy's usage update", () => {
@@ -60,15 +85,18 @@ it("needs the CodeBuddy CLI itself: the WorkBuddy app alone is named, not taken 
 
 it("runs `codebuddy --acp`, bypassing its prompts only for a full-access turn, and seeds the models from its help", () => {
   const acp = workbuddy.acp!;
-  expect(acp.args({ command: "codebuddy" })).toEqual(["--acp"]);
-  expect(acp.env!({ command: "codebuddy" })).toEqual({ CODEBUDDY_CODE_DISABLE_SESSION_SUMMARY: "1" });
+  expect(acp.args({ command: "codebuddy", region: "auto" })).toEqual(["--acp"]);
+  expect(acp.env!({ command: "codebuddy", region: "auto" })).toEqual({ CODEBUDDY_CODE_DISABLE_SESSION_SUMMARY: "1" });
+  expect(acp.env!({ command: "codebuddy", region: "china" })).toEqual({ CODEBUDDY_CODE_DISABLE_SESSION_SUMMARY: "1", CODEBUDDY_INTERNET_ENVIRONMENT: "internal" });
+  expect(acp.env!({ command: "codebuddy", region: "international" })).toEqual({ CODEBUDDY_CODE_DISABLE_SESSION_SUMMARY: "1", CODEBUDDY_INTERNET_ENVIRONMENT: "public" });
+  expect(workbuddy.picks).toEqual([{ key: "region", title: "Version", global: true, choices: [{ value: "china", label: "China edition" }, { value: "international", label: "International" }] }]);
   expect([acp.mode!("full-access"), acp.mode!("ask"), acp.mode!("read-only")]).toEqual(["bypassPermissions", "default", "default"]);
   expect(acp).toMatchObject({ steer: "method", terminal: true, failure: codebuddyFailure });
   expect(acp).not.toHaveProperty("terminalViaLink");
   expect(acp.permissionModes).toEqual({ default: "full-access", choices: [{ value: "full-access", label: "Full access" }, { value: "ask", label: "Ask permissions" }, { value: "read-only", label: "Read only" }] });
   expect(workbuddy).toMatchObject({ id: "workbuddy", title: "CodeBuddy (WorkBuddy)", cli: { name: "codebuddy" }, signIn: "sign in to CodeBuddy: run `codebuddy` and type /login", lend: { rank: 20 } });
   expect(workbuddy.setup).toEqual({ install: [{ npm: "@tencent-ai/codebuddy-code" }], signIn: "codebuddy", signInRuns: true, docs: "https://www.codebuddy.ai/docs/cli/installation", download: "https://www.codebuddy.ai/docs/cli/installation", desktop: { title: "WorkBuddy", shipsCli: false } });
-  expect(WorkBuddyOptions.parse({})).toEqual({ command: "codebuddy" });
+  expect(WorkBuddyOptions.parse({})).toEqual({ command: "codebuddy", region: "auto" });
   const catalog = { models: [] as { value: string }[], efforts: [] };
   expect(workbuddy.probe!.args).toEqual(["--help"]);
   expect(workbuddy.probe!.says("Currently supported: (hy3, gpt-5.5)", catalog)).toBeNull();
@@ -79,11 +107,21 @@ it("runs `codebuddy --acp`, bypassing its prompts only for a full-access turn, a
 });
 
 it("tells the troubleshooter which edition it is, and where its newest logs are", () => {
+  const configDir = fs.mkdtempSync(path.join(os.tmpdir(), "codebuddy-facts-"));
+  process.env.CODEBUDDY_CONFIG_DIR = configDir;
+  delete process.env.CODEBUDDY_INTERNET_ENVIRONMENT;
   const facts = workbuddy.diagnostics!.facts!;
   // The doctor's workbuddy-ioa-edition check reads `edition`.
   expect(facts({ models: [{ value: "hy3" }, { value: "claude-4.5-ioa" }], efforts: [] }).edition).toBe("ioa");
   expect(facts({ models: [{ value: "hy3" }], efforts: [] }).edition).toBe("public");
-  expect(facts({ models: [], efforts: [] })).toMatchObject({ edition: "unknown", internetEnvironment: expect.any(String) });
+  expect(facts({ models: [], efforts: [] })).toMatchObject({ edition: "unknown", internetEnvironment: "public" });
+  // The chosen edition is a fact even before a session lists models, and the process environment wins.
+  fs.writeFileSync(codebuddySettingsFile(), JSON.stringify({ env: { CODEBUDDY_INTERNET_ENVIRONMENT: "internal" } }));
+  expect(facts({ models: [], efforts: [] })).toEqual({ edition: "china", internetEnvironment: "internal" });
+  process.env.CODEBUDDY_INTERNET_ENVIRONMENT = "ioa";
+  expect(facts({ models: [{ value: "hy3" }], efforts: [] }).edition).toBe("ioa");
+  process.env.CODEBUDDY_INTERNET_ENVIRONMENT = "cloudhosted";
+  expect(facts({ models: [{ value: "hy3" }], efforts: [] })).toEqual({ edition: "cloudhosted", internetEnvironment: "cloudhosted" });
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codebuddy-logs-"));
   for (const [name, at] of [["a__1.log", 1], ["b__2.log", 3], ["desktop__3.log", 4], ["c__4.log", 2], ["notes.txt", 5]] as const) {
@@ -92,6 +130,46 @@ it("tells the troubleshooter which edition it is, and where its newest logs are"
   }
   expect(newestLogs(dir, (name) => name.endsWith(".log") && !name.startsWith("desktop__"))).toEqual([path.join(dir, "b__2.log"), path.join(dir, "c__4.log")]);
   expect(newestLogs(path.join(dir, "gone"), () => true)).toEqual([]);
+});
+
+it("writes the chosen edition into CodeBuddy's settings and takes back only its own value", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codebuddy-region-"));
+  process.env.CODEBUDDY_CONFIG_DIR = dir;
+  delete process.env.CODEBUDDY_INTERNET_ENVIRONMENT;
+  const read = () => JSON.parse(fs.readFileSync(codebuddySettingsFile(), "utf8")) as Record<string, unknown>;
+  // A fresh config: the env map is the only key.
+  expect(setRegionFile("international")).toBe("written");
+  expect(read()).toEqual({ env: { CODEBUDDY_INTERNET_ENVIRONMENT: "public" } });
+  expect(effectiveRegion()).toBe("public");
+  expect(clearRegionFile("international")).toBe("cleared");
+  expect(read()).toEqual({});
+
+  // Everything else in the file stays, and the same value is not written twice.
+  fs.writeFileSync(codebuddySettingsFile(), JSON.stringify({ model: "hy3", env: { KEEP: "1" }, hooks: { Stop: [] } }));
+  expect(setRegionFile("china")).toBe("written");
+  expect(read()).toEqual({ model: "hy3", env: { KEEP: "1", CODEBUDDY_INTERNET_ENVIRONMENT: "internal" }, hooks: { Stop: [] } });
+  expect(setRegionFile("china")).toBe("unchanged");
+  expect(effectiveRegion()).toBe("internal");
+  expect(clearRegionFile("china")).toBe("cleared");
+  expect(read()).toEqual({ model: "hy3", env: { KEEP: "1" }, hooks: { Stop: [] } });
+
+  // A value the person set themselves is kept when auto is chosen.
+  fs.writeFileSync(codebuddySettingsFile(), JSON.stringify({ env: { CODEBUDDY_INTERNET_ENVIRONMENT: "ioa" } }));
+  expect(clearRegionFile("china")).toBe("kept");
+  expect(effectiveRegion()).toBe("ioa");
+
+  // An unreadable file is never rewritten.
+  fs.writeFileSync(codebuddySettingsFile(), "not json");
+  expect(setRegionFile("international")).toBe("unreadable");
+  expect(clearRegionFile("international")).toBe("unreadable");
+  expect(fs.readFileSync(codebuddySettingsFile(), "utf8")).toBe("not json");
+});
+
+it("adds nothing to a session for auto, and only the chosen region otherwise", () => {
+  expect(regionEnv()).toEqual({});
+  expect(regionEnv("auto")).toEqual({});
+  expect(regionEnv("china")).toEqual({ CODEBUDDY_INTERNET_ENVIRONMENT: "internal" });
+  expect(regionEnv("international")).toEqual({ CODEBUDDY_INTERNET_ENVIRONMENT: "public" });
 });
 
 it("a refused turn's reason comes out of CodeBuddy's _meta, upstream words first", () => {
@@ -171,7 +249,7 @@ describe("CodeBuddy answering worker calls", () => {
     const cli = fakeCli(fakeCodebuddy(dir, "fake-codebuddy-lent.mjs", `TOMRADE_TEST_LOG='${log}' `));
     const ask = workbuddy.lend!.ask;
     const calls = () => (fs.existsSync(log) ? fs.readFileSync(log, "utf8").trim().split("\n").filter(Boolean) : []);
-    return { log, calls, ask: (user: string) => ask({ system: "Reply in JSON.", transcript: user }, io(cli, { command: "codebuddy", ...options })) };
+    return { log, calls, ask: (user: string) => ask({ system: "Reply in JSON.", transcript: user }, io(cli, { command: "codebuddy", region: "auto", ...options })) };
   }
 
   it("asks CodeBuddy bare: no tools, MCP, settings, memory or saved session, the instructions in a file", async () => {
@@ -200,10 +278,12 @@ describe("CodeBuddy answering worker calls", () => {
   }, 30_000);
 
   it("uses the model the person last picked in CodeBuddy when Tomrade names none", () => {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), "codebuddy-home-"));
-    expect(ownModel(home)).toBeUndefined();
-    fs.mkdirSync(path.join(home, ".codebuddy"));
-    fs.writeFileSync(path.join(home, ".codebuddy", "settings.json"), JSON.stringify({ model: "hy3", trustedDirectories: [] }));
-    expect(ownModel(home)).toBe("hy3");
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), "codebuddy-home-"));
+    expect(ownModel(configDir)).toBeUndefined();
+    fs.writeFileSync(path.join(configDir, "settings.json"), JSON.stringify({ model: "hy3", trustedDirectories: [] }));
+    expect(ownModel(configDir)).toBe("hy3");
+    // The default follows CODEBUDDY_CONFIG_DIR, the same folder its settings and logs use.
+    process.env.CODEBUDDY_CONFIG_DIR = configDir;
+    expect(ownModel()).toBe("hy3");
   });
 });
