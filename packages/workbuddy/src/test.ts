@@ -10,7 +10,7 @@ type Engine = {
   mcpLink: boolean;
   setup?: { install: string[]; signIn?: string; signInRuns?: boolean };
   permissionModes?: { default: string; choices: { value: string }[] };
-  picks: { key: string }[];
+  picks: { key: string; title?: string; global?: boolean }[];
 };
 
 /** `tomrade-plugin test` scenario: WorkBuddy as Tomrade's own conductor registers it. The sandbox runs no program, so its CLI is the unit tests' to stand in for. */
@@ -22,5 +22,5 @@ export default async function scenario(t: { check(name: string, ok: boolean, det
   t.check("full access by default, asking, or read only", engine?.permissionModes?.default === "full-access" && engine.permissionModes.choices.map((c) => c.value).join() === "full-access,ask,read-only", seen);
   t.check("installs the CodeBuddy CLI with npm and signs in inside `codebuddy`", engine?.setup?.install.join() === "npm install -g @tencent-ai/codebuddy-code" && engine.setup.signIn === "codebuddy" && !!engine.setup.signInRuns, seen);
   t.check("whose models come from its help and its sessions", engine?.picks.map((p) => p.key).join() === "region,model", seen);
-  t.check("and whose edition is a machine-wide pick", engine?.picks[0]?.global === true && engine.picks[0].title === "Version", seen);
+  t.check("and whose edition is a machine-wide pick", engine?.picks[0]?.global === true && engine.picks[0]?.title === "Version", seen);
 }
