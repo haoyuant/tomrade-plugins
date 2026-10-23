@@ -1,6 +1,6 @@
 {
   "id": "tomrade/hermes",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "title": "Hermes",
   "description": "Hermes Agent from Nous Research as a coding agent in Tomrade: conversations and tickets run on your own Hermes over ACP with Tomrade's tools, a ticket can also go to Hermes in a terminal, its own sessions report to Tomrade once connected, and its sign-in answers Tomrade's background calls.",
   "license": "Apache-2.0",

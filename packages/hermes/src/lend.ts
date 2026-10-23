@@ -2,12 +2,16 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { NotSignedIn, type LentAnswer, type LentRequest, type LocalAgentIo } from "@tomradex/plugin-sdk";
+import { fitsCommandLine } from "./command-line.js";
 import type { HermesOptions } from "./hermes.js";
 
 // Before the reply: Hermes has no first-run provider yet, or no key for it.
 const SIGNED_OUT = /hermes (setup|model)|no (inference )?provider|no api key|api key (is )?(missing|not set)/i;
-// Hermes takes a one-shot prompt only as an argument; past this a command line may not hold it.
-const MAX_PROMPT = 100_000;
+// Hermes takes a one-shot prompt only as an argument, so a request this platform's command line cannot hold is refused.
+const TOO_LONG = {
+  en: "Hermes could not answer: this request is too long for this computer's command line, the only way Hermes takes a one-shot prompt",
+  zh: "Hermes 无法回答：这次请求太长，超出了这台电脑命令行能传递的长度，而 Hermes 只能从命令行接收单次提示词"
+};
 
 interface UsageFile {
   input_tokens?: number | null;
@@ -24,14 +28,14 @@ interface UsageFile {
  * started), no AGENTS.md, memory or skills. It has no system-prompt flag, so
  * the instructions lead the prompt. Its titling calls count toward the spend.
  */
-export async function hermesAsk(request: LentRequest, io: LocalAgentIo<HermesOptions> & { signal?: AbortSignal }): Promise<LentAnswer> {
+export async function hermesAsk(request: LentRequest, io: LocalAgentIo<HermesOptions> & { signal?: AbortSignal }, locale = "en"): Promise<LentAnswer> {
   const prompt = `${request.system}\n\n---\n\n${request.transcript}`;
-  if (prompt.length > MAX_PROMPT) throw new Error(`Hermes could not answer: the request is ${prompt.length} characters, more than a one-shot command line holds`);
   const { model } = io.options;
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "tomrade-hermes-lent-"));
   const usageFile = path.join(tmp, "usage.json");
   try {
     const args = ["-z", prompt, "-t", "todo", "--ignore-rules", "--usage-file", usageFile, ...(model ? ["-m", model] : [])];
+    if (!fitsCommandLine([io.cli.name, ...args])) throw new Error(simplifiedChinese(locale) ? TOO_LONG.zh : TOO_LONG.en);
     const run = await io.cli.run(args, { cwd: tmp, env: { NO_COLOR: "1" }, ...(io.signal ? { signal: io.signal } : {}) });
     let usage: UsageFile = {};
     try { usage = JSON.parse(fs.readFileSync(usageFile, "utf8")) as UsageFile; } catch { /* an early failure writes none */ }
@@ -53,4 +57,9 @@ export async function hermesAsk(request: LentRequest, io: LocalAgentIo<HermesOpt
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
+}
+
+/** Whether a language tag reads in Simplified Chinese: zh-TW does not. */
+function simplifiedChinese(tag: string): boolean {
+  try { const l = new Intl.Locale(tag).maximize(); return l.language === "zh" && l.script === "Hans"; } catch { return false; }
 }
