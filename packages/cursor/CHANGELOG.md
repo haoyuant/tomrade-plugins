@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Cursor runs inside Tomrade over ACP: conversations and tickets go to `cursor-agent acp`, which advertises HTTP MCP, with Tomrade's tools handed to it; Full access, Ask permissions and Read only are Cursor's own. The ticket in a terminal is still there.
+- Background calls run in a folder only you can reach (`tomrade-cursor-worker-<your user id>` in the temporary directory, readable by you alone), no longer one every user on the computer shares. If that folder is not yours or is a link, a fresh private one is used, so another user cannot plant rules or an AGENTS.md that ride along.
 
 ## 0.1.2
 

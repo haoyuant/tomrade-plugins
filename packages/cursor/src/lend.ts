@@ -12,8 +12,31 @@ interface ResultLine {
   usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheWriteTokens?: number };
 }
 
-// Always the same folder: cursor-agent keeps a background worker and a record in ~/.cursor/projects for each one it runs in.
-export const cursorWorkerDir = (): string => path.join(os.tmpdir(), "tomrade-cursor-worker");
+const fallbackDirs = new Map<string, string>();
+
+/**
+ * The same folder for every call (cursor-agent keeps a background worker and a
+ * record in ~/.cursor/projects for each one it runs in), private to this user:
+ * on a shared machine another user could otherwise create it first and plant
+ * rules that reach every call. One that is not ours is never used.
+ */
+export function cursorWorkerDir(base: string = os.tmpdir()): string {
+  const uid = process.getuid?.();
+  const dir = path.join(base, `tomrade-cursor-worker-${uid ?? os.userInfo().username}`);
+  try {
+    fs.mkdirSync(dir, { mode: 0o700 });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+  }
+  const stat = fs.lstatSync(dir);
+  if (stat.isDirectory() && !stat.isSymbolicLink() && (uid === undefined || stat.uid === uid)) {
+    if (uid !== undefined && (stat.mode & 0o077) !== 0) fs.chmodSync(dir, 0o700);
+    return dir;
+  }
+  let fallback = fallbackDirs.get(base);
+  if (!fallback || !fs.existsSync(fallback)) fallbackDirs.set(base, (fallback = fs.mkdtempSync(path.join(base, "tomrade-cursor-worker-"))));
+  return fallback;
+}
 
 /** The Model set for Cursor in Settings (`engines.cursor.model`), trimmed; none when it is empty. */
 function modelOf(options: LocalAgentOptions | undefined): string | undefined {
@@ -29,7 +52,6 @@ function modelOf(options: LocalAgentOptions | undefined): string | undefined {
  */
 export async function cursorAsk(request: LentRequest, io: LocalAgentIo<LocalAgentOptions> & { signal?: AbortSignal }): Promise<LentAnswer> {
   const cwd = cursorWorkerDir();
-  fs.mkdirSync(cwd, { recursive: true });
   const model = modelOf(io.options);
   const args = ["-p", "--output-format", "json", "--mode", "ask", "--trust", ...(model ? ["--model", model] : [])];
   let result: ResultLine | null = null;
