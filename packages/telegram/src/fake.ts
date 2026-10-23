@@ -231,6 +231,11 @@ export class FakeTelegram {
     const thread = params.message_thread_id === undefined ? undefined : Number(params.message_thread_id);
     switch (method) {
       case "getMe": return ok({ ...this.bot, can_join_groups: true, can_read_all_group_messages: false, supports_inline_queries: false });
+      case "getChat": {
+        const known = [this.ann, this.bob].find(u => u.id === chat);
+        return chat > 0 ? (known ? ok({ id: chat, type: "private", first_name: known.first_name, ...(known.last_name ? { last_name: known.last_name } : {}) }) : refuse(400, "Bad Request: chat not found"))
+          : ok(this.chatOf(chat));
+      }
       case "getWebhookInfo": return ok({ url: this.webhook, has_custom_certificate: false, pending_update_count: this.pending.length });
       case "getUpdates": return this.poll(params, init.signal ?? undefined);
       case "sendMessage": case "sendPhoto": case "sendDocument": return this.send(method, chat, thread, params);

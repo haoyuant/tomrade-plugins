@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
-import type { ImAdapter, ImAdapterSession, ImAddress, ImCapabilities, ImContent, ImInbound } from "@tomradex/plugin-sdk";
+import type { ImAdapter, ImAdapterSession, ImAddress, ImCapabilities, ImContent, ImInbound, ImLink } from "@tomradex/plugin-sdk";
 import { Api, net, TelegramError, unchanged, unparsable, untouched, type Net } from "./api.js";
 import { clip, Codec, esc, inputOf, labelOf, plainOf, readSelect, Recent, render, retick } from "./markup.js";
 import { Poller } from "./poller.js";
-import { activationOf, actorOf, addressOf, contextOf, filesOf, isPrivate, nameOf, quotedOf, REACTIONS, readText, type TCallback, type TMessage, type TUpdate, type TUser } from "./wire.js";
+import { activationOf, actorOf, addressOf, addToGroup, contextOf, filesOf, isPrivate, nameOf, quotedOf, REACTIONS, readText, TENANT, type TCallback, type TMessage, type TUpdate, type TUser } from "./wire.js";
 
 export const CAPABILITIES: ImCapabilities = {
   edit: true, buttons: true, inboundFiles: true, outboundFiles: true,
@@ -294,8 +294,46 @@ export async function openTelegram(connectionId: string, io: IO, opts: TelegramO
     return first!;
   };
 
+  const link: ImLink | undefined = bot.username ? { label: { en: "Add the bot to a group", zh: "把机器人加到群" }, url: addToGroup(bot.username) } : undefined;
+  /** What keeps a group from having a topic per ticket, by what Telegram said, in the person's words. */
+  const TOPICLESS = {
+    forum: { test: /not a forum/i, text: {
+      en: "This group has no Topics, so each ticket's news stays here instead of in a topic of its own. For a topic per ticket, turn on **Topics** in the group's settings and make the bot an admin with **Manage Topics**.",
+      zh: "这个群没有开启话题（Topics），所以每个工单的动态都发在这里，而不是各自的话题里。想要每个工单一个话题，请在群设置里开启 **话题（Topics）**，并把机器人设为管理员、给它 **管理话题（Manage Topics）** 权限。" } },
+    rights: { test: /not enough rights/i, text: {
+      en: "I can't open or close topics here: the bot is not an admin with the **Manage Topics** right. Add it again with the link below, or give it that right in the group's admin settings. Until then each ticket's news stays here.",
+      zh: "我无法在这里开启或关闭话题：机器人不是有 **管理话题（Manage Topics）** 权限的管理员。用下面的链接重新添加机器人，或在群的管理员设置里给它这个权限。在那之前，每个工单的动态都发在这里。" } }
+  } as const;
+  /** Causes told per chat, so each is said once until topics work there again. */
+  const told = new Set<string>();
+  /** A topic call in a group, saying once why Telegram refused it when the group or the bot's rights are the cause. */
+  const topical = async <T>(chat: string, work: () => Promise<T>): Promise<T> => {
+    try {
+      const done = await work();
+      for (const cause of Object.keys(TOPICLESS)) if (told.delete(`topics:${chat}:${cause}`)) io.clearNotice?.(`topics:${chat}:${cause}`);
+      return done;
+    } catch (e) {
+      const cause = e instanceof TelegramError && e.disposition === "permanent"
+        ? (Object.keys(TOPICLESS) as (keyof typeof TOPICLESS)[]).find(k => TOPICLESS[k].test.test(e.description)) : undefined;
+      const key = `topics:${chat}:${cause}`;
+      if (cause && !told.has(key)) {
+        told.add(key);
+        io.notice?.({ key, text: TOPICLESS[cause].text, address: { tenantId: TENANT, conversationId: chat }, ...(link ? { link } : {}) });
+      }
+      throw e;
+    }
+  };
+
   return {
     identity: { id: String(me.id), name: me.username ? `${me.first_name} (@${me.username})` : me.first_name },
+    ...(link ? { links: [link] } : {}),
+
+    /** A group by its title; a direct chat by the person in it. */
+    async describe(address) {
+      const chat = await api.call<{ title?: string; first_name?: string; last_name?: string }>("getChat", { chat_id: Number(address.conversationId) }, { idempotent: true }).catch(() => null);
+      const name = chat?.title || [chat?.first_name, chat?.last_name].filter(Boolean).join(" ");
+      return name ? { name } : null;
+    },
 
     async deliver(d) {
       // A draft is no message: a reply still a draft at a restart is posted anew.
@@ -376,7 +414,7 @@ export async function openTelegram(connectionId: string, io: IO, opts: TelegramO
         const name = clip(title, TOPIC_NAME);
         pace(chat);
         // Not idempotent: a topic whose answer was lost may exist, so that is uncertain rather than opened twice.
-        const topic = await api.call<{ message_thread_id: number }>("createForumTopic", { chat_id: Number(chat), name });
+        const topic = await topical(chat, () => api.call<{ message_thread_id: number }>("createForumTopic", { chat_id: Number(chat), name }));
         topics.set(`${chat}:${topic.message_thread_id}`, { name, closed: false });
         return { topicId: String(topic.message_thread_id) };
       },
@@ -389,7 +427,7 @@ export async function openTelegram(connectionId: string, io: IO, opts: TelegramO
         /** One change, remembered once it is made, so a retry sends only what is left. */
         const step = async (method: string, extra: Record<string, unknown>, made: { name?: string; closed?: boolean }) => {
           pace(chat);
-          try { await api.call(method, { chat_id: Number(chat), message_thread_id: Number(address.topicId), ...extra }, { idempotent: true }); }
+          try { await topical(chat, () => api.call(method, { chat_id: Number(chat), message_thread_id: Number(address.topicId), ...extra }, { idempotent: true })); }
           catch (e) { if (!untouched(e)) throw e; }
           topics.set(key, Object.assign(known, made));
         };

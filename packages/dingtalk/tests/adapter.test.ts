@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
+import type { ImAdapter } from "@tomradex/plugin-sdk";
+import plugin from "../src/index.js";
 import type { ImAdapterSession, ImDelivery, ImInbound } from "@tomradex/plugin-sdk";
 import { openDingTalk } from "../src/adapter.js";
 import { TEMPLATE } from "../src/card.js";
@@ -412,3 +414,29 @@ describe("limits", () => {
     expect(fake.where("POST", /createAndDeliver$/)[0]!.body).toMatchObject({ imGroupOpenDeliverModel: { robotCode: fake.clientId } });
   });
 });
+
+describe("using it in a group", () => {
+  it("shows its own steps for a group in IM settings, in English and Chinese", async () => {
+    const adapters: ImAdapter[] = [];
+    await plugin.apply({ im: { register: async (a: ImAdapter) => { adapters.push(a); return () => {}; } } } as never, undefined as never);
+    expect(adapters.length).toBeGreaterThan(0);
+    for (const a of adapters) {
+      const steps = a.setup!.groupSteps! as { en: string; zh: string }[];
+      expect(steps).toHaveLength(3);
+      expect(steps.every(s => s.en && s.zh)).toBe(true);
+    }
+  });
+});
+
+describe("naming conversations", () => {
+  it("names a group by the title its messages carry, and nothing for a direct chat", async () => {
+    const { fake, session, events } = await connect();
+    expect(await session.describe!({ tenantId: "corp", conversationId: "cid-team" })).toBeNull();
+    fake.message({ sender: "ann", text: "hi", group: "cid-team" });
+    fake.message({ sender: "ann", text: "hi" });
+    await until("both messages", () => events.length === 2);
+    expect(await session.describe!({ tenantId: "corp", conversationId: "cid-team" })).toEqual({ name: "Team" });
+    expect(await session.describe!({ tenantId: "corp", conversationId: message(events).address.conversationId })).toBeNull();
+  });
+});
+

@@ -72,7 +72,15 @@ const setup: ImAdapterSetup = {
   ],
   permissions: [...SCOPES.slice(0, -2), ...SCOPES.slice(-2).map(s => `${s} (optional)`), "connections:write (App-Level Token)"],
   manifest: { format: "yaml", text: MANIFEST },
-  docsUrl: "https://api.slack.com/apps"
+  docsUrl: "https://api.slack.com/apps",
+  groupSteps: [
+    { en: "In the channel, type `/invite @` and the bot's name: Slack lets a bot post only in channels it was invited to.",
+      zh: "在频道里输入 `/invite @` 加机器人的名字：Slack 只允许机器人在邀请过它的频道里发消息。" },
+    { en: "@mention the bot there and choose what the channel is for: Work (a thread per ticket), Status (news only) or Chat (talk to the assistant).",
+      zh: "在那里 @机器人，选择这个频道的用途：工作（每个工单一个话题）、状态（只推送消息）或聊天（和助手对话）。" },
+    { en: "Move a ticket to Doing: in a work channel it gets a message of its own, whose thread carries the ticket's news.",
+      zh: "把一个工单移到「进行中」：在工作频道里它会有一条自己的消息，工单的动态都发在这条消息的话题里。" }
+  ]
 };
 
 /** Slack over Socket Mode: direct messages and the agent view, @mentions and threads in channels, from this computer. */

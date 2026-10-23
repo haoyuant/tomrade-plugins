@@ -321,10 +321,51 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
     await api.call("chat.update", { channel, ts, text, blocks }, { repeatable: true });
   };
 
-  return {
-    identity: { id: botUserId, name: (await nameOf(botUserId)) ?? auth.user ?? botUserId },
+  const botName = (await nameOf(botUserId)) ?? auth.user ?? botUserId;
+  /** Causes told per channel, so each is said once until a call there works again. */
+  const told = new Set<string>();
+  /**
+   * A call in a channel, saying once when Slack refused it because the bot is not a member or the app lacks a scope;
+   * the refusal still reaches the IM layer.
+   */
+  const guarded = async <T>(channel: string, work: () => Promise<T>): Promise<T> => {
+    try {
+      const result = await work();
+      for (const key of [...told]) if (key.startsWith(`slack:${channel}:`)) { told.delete(key); io.clearNotice?.(key); }
+      return result;
+    } catch (e) {
+      if (e instanceof SlackError && e.disposition === "permanent" && !isDirect(channel)) {
+        const member = e.code === "not_in_channel" || e.code === "channel_not_found";
+        const scope = e.code === "missing_scope" ? e.needed ?? "?" : undefined;
+        const key = member ? `slack:${channel}:member` : scope ? `slack:${channel}:scope:${scope}` : undefined;
+        if (key && !told.has(key)) {
+          told.add(key);
+          const text = member ? {
+            en: `I can't post in channel ${channel}: the bot is not a member of it. In that channel, type \`/invite @${botName}\`.`,
+            zh: `我无法在频道 ${channel} 里发消息：机器人不是它的成员。请在那个频道里输入 \`/invite @${botName}\`。`
+          } : {
+            en: `Slack refused this in channel ${channel}: the app is missing the \`${scope}\` scope. Add it under OAuth & Permissions (or paste the manifest from Tomrade's IM settings again) and reinstall the app to the workspace.`,
+            zh: `Slack 在频道 ${channel} 里拒绝了这个操作：应用缺少 \`${scope}\` 权限。请在 OAuth & Permissions 里加上它（或重新粘贴 Tomrade IM 设置里的 manifest），然后把应用重新安装到工作区。`
+          };
+          io.notice?.({ key, text, address: { tenantId: team, conversationId: channel } });
+        }
+      }
+      throw e;
+    }
+  };
 
-    async deliver(d: ImDelivery) {
+  return {
+    identity: { id: botUserId, name: botName },
+
+    /** A channel as `#name`; a direct message by the person in it. Without the scope to read channels, nothing. */
+    async describe(address) {
+      const r = await api.call<{ channel?: { name?: string; is_im?: boolean; user?: string } }>("conversations.info", { channel: address.conversationId }, { repeatable: true }).catch(() => null);
+      const channel = r?.channel;
+      if (channel?.is_im && channel.user) { const name = await nameOf(channel.user); return name ? { name } : null; }
+      return channel?.name ? { name: `#${channel.name}` } : null;
+    },
+
+    deliver: (d: ImDelivery) => guarded(d.address.conversationId, async () => {
       const channel = d.address.conversationId;
       if (d.replaceMessageId) {
         const ts = tsOf(d.replaceMessageId);
@@ -339,7 +380,7 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
       const first = message ? await post(d, channel, root) : undefined;
       const shared = hasFiles ? await share(d, channel, root, message ? undefined : content.text) : undefined;
       return { messageId: (first ?? shared)! };
-    },
+    }),
 
     async download(ref) {
       let known = files.get(ref.id);
@@ -352,7 +393,7 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
       return api.download(known.url, known.mimeType);
     },
 
-    async react({ address, messageId: id, reaction }) {
+    react: ({ address, messageId: id, reaction }) => guarded(address.conversationId, async () => {
       const ts = tsOf(id);
       if (!ts) return;
       const channel = address.conversationId;
@@ -364,7 +405,7 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
       try { await api.call("reactions.add", { channel, timestamp: ts, name }, { repeatable: true }); }
       catch (e) { if (!(e instanceof SlackError) || e.code !== "already_reacted") throw e; }
       reacted.set(key, name);
-    },
+    }),
 
     /** The assistant status in the thread ("is thinking…"); Slack clears it with an empty one. */
     async indicate({ address, threadId, state }) {
@@ -403,7 +444,7 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
         let ts = done.get(key);
         if (!ts) {
           const text = escape(title);
-          ts = (await api.call<{ ts: string }>("chat.postMessage", { channel, text, metadata: { event_type: TOPIC_EVENT, event_payload: { operation: operationId } } })).ts;
+          ts = (await guarded(channel, () => api.call<{ ts: string }>("chat.postMessage", { channel, text, metadata: { event_type: TOPIC_EVENT, event_payload: { operation: operationId } } }))).ts;
           done.set(key, ts);
           titles.set(`${channel}:${ts}`, text);
         }
@@ -417,7 +458,7 @@ export async function openSlack(connectionId: string, io: IO, opts: SlackOptions
         const key = `${channel}:${address.topicId}`;
         const text = `${closed ? "✅ " : ""}${escape(title)}`;
         if (titles.get(key) === text) return;
-        await api.call("chat.update", { channel, ts: address.topicId, text }, { repeatable: true });
+        await guarded(channel, () => api.call("chat.update", { channel, ts: address.topicId, text }, { repeatable: true }));
         titles.set(key, text);
       }
     },

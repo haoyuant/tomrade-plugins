@@ -47,7 +47,14 @@ function setup(domain: Domain): ImAdapterSetup {
         zh: "可选：在「机器人 → 自定义菜单」添加菜单项，动作选**推送事件**，事件 key 填指令名（`new`、`stop`、`status`、`sessions` 等）。" }
     ],
     permissions: PERMISSIONS,
-    docsUrl: site
+    docsUrl: site,
+    groupSteps: [
+      { en: `In the group, open its settings → **Bots** → **Add bot** and pick the app. It must be published, with the group's members in its availability.`,
+        zh: `在群里打开群设置 → **群机器人** → **添加机器人**，选择这个应用。应用要已发布，可用范围包含群里的成员。` },
+      { en: "@mention the bot in the group and choose what it is for: Work, Status (news only) or Chat (talk to the assistant).", zh: "在群里 @机器人，选择这个群的用途：工作、状态（只推送消息）或聊天（和助手对话）。" },
+      { en: `Move a ticket to Doing: in a work group it gets a card of its own, and the ticket's news goes into that card's topic.`,
+        zh: `把一个工单移到「进行中」：在工作群里它会有一张自己的卡片，工单的动态都发在这张卡片的话题里。` }
+    ]
   };
 }
 

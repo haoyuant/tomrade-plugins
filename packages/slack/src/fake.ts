@@ -36,6 +36,11 @@ export class FakeSlack {
   /** When each envelope was sent, so a test can tell how fast it was acknowledged. */
   readonly sentAt = new Map<string, number>();
   readonly users = new Map<string, string>([["U0BOT", "Tomrade"]]);
+  /** Channel names `conversations.info` gives; a direct message names the person in it by `dms`. */
+  readonly channels = new Map<string, string>();
+  readonly dms = new Map<string, string>();
+  /** `conversations.info` answers missing_scope, as for an app without channels:read. */
+  noChannelScope = false;
   readonly files = new Map<string, { name: string; mimetype: string; bytes: Uint8Array; shared?: boolean }>();
   /** When set, chat.startStream is refused, as where Slack streams nothing. */
   noStream = false;
@@ -43,7 +48,7 @@ export class FakeSlack {
   noHistory = false;
   private ids = 0;
   private clock = 1_700_000_000;
-  private fail: { match: (c: FakeCall) => boolean; status: number; error: string; retryAfter?: number; times: number }[] = [];
+  private fail: { match: (c: FakeCall) => boolean; status: number; error: string; retryAfter?: number; needed?: string; times: number }[] = [];
 
   get live() { const s = this.sockets.filter(s => s.readyState === 1).at(-1); return s ?? null; }
   /** Failures set with failNext that have not happened yet. */
@@ -59,8 +64,8 @@ export class FakeSlack {
   ts() { return `${this.clock}.${String(++this.ids).padStart(6, "0")}`; }
 
   /** Answers the next calls `match` picks with `status` and Slack's `error` (a 429 carries Retry-After, in seconds). */
-  failNext(match: (c: FakeCall) => boolean, status: number, error: string, opts: { retryAfter?: number; times?: number } = {}) {
-    this.fail.push({ match, status, error, ...(opts.retryAfter !== undefined ? { retryAfter: opts.retryAfter } : {}), times: opts.times ?? 1 });
+  failNext(match: (c: FakeCall) => boolean, status: number, error: string, opts: { retryAfter?: number; times?: number; needed?: string } = {}) {
+    this.fail.push({ match, status, error, ...(opts.retryAfter !== undefined ? { retryAfter: opts.retryAfter } : {}), ...(opts.needed ? { needed: opts.needed } : {}), times: opts.times ?? 1 });
   }
 
   /** The connection breaks without a word. */
@@ -171,7 +176,7 @@ export class FakeSlack {
     const failing = this.fail.find(f => f.times > 0 && f.match(call));
     if (failing) {
       failing.times--;
-      return json({ ok: false, error: failing.error }, failing.status, failing.retryAfter !== undefined ? { "retry-after": String(failing.retryAfter) } : {});
+      return json({ ok: false, error: failing.error, ...(failing.needed ? { needed: failing.needed } : {}) }, failing.status, failing.retryAfter !== undefined ? { "retry-after": String(failing.retryAfter) } : {});
     }
     if (method === "apps.connections.open") {
       if (token !== this.appToken) return json({ ok: false, error: token === this.botToken ? "not_allowed_token_type" : "invalid_auth" });
@@ -181,6 +186,12 @@ export class FakeSlack {
     switch (method) {
       case "auth.test":
         return json({ ok: true, url: "https://fake.slack.com/", team: "Fake", user: this.bot.name, team_id: this.team, user_id: this.bot.userId, bot_id: this.bot.botId, is_enterprise_install: false });
+      case "conversations.info": {
+        if (this.noChannelScope) return json({ ok: false, error: "missing_scope", needed: "channels:read" });
+        const id = args.channel ?? "";
+        if (this.dms.has(id)) return json({ ok: true, channel: { id, is_im: true, user: this.dms.get(id) } });
+        return this.channels.has(id) ? json({ ok: true, channel: { id, name: this.channels.get(id) } }) : json({ ok: false, error: "channel_not_found" });
+      }
       case "users.info": {
         const name = this.users.get(args.user ?? "");
         return name ? json({ ok: true, user: { id: args.user, name: name.toLowerCase(), real_name: name, profile: { display_name: name, real_name: name } } }) : json({ ok: false, error: "user_not_found" });

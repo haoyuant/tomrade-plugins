@@ -30,7 +30,11 @@ export const cursor: LocalAgentSpec<CursorOptions> = {
   setup: {
     install: [process.platform === "win32" ? { powershell: "https://cursor.com/install?win32=true" } : { script: "https://cursor.com/install" }],
     signIn: "cursor-agent login",
-    docs: "https://cursor.com/docs/cli/overview"
+    // `cursor-agent login` opens the browser itself, prints the address and returns once signed in; nothing to type.
+    signInRun: { args: ["login"] },
+    docs: "https://cursor.com/docs/cli/overview",
+    download: "https://cursor.com/download",
+    desktop: { title: "Cursor", shipsCli: false }
   },
   options: CursorOptions,
   acp: {

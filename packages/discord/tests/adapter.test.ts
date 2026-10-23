@@ -463,3 +463,29 @@ describe("/tomrade setup", () => {
     expect(allowed.slice(3).map(a => a.projectId)).toEqual(["p2", "p2", "p2"]);
   });
 });
+
+describe("naming conversations", () => {
+  it("names a server channel as #name, from what the gateway said or by asking, and a direct chat by the person in it", async () => {
+    const discord = new FakeDiscord();
+    discord.guildChannels.set(GUILD, [{ id: "61", type: 0, name: "asked-for" }]);
+    discord.dms.set(DM, { id: OWNER, name: "Tom" });
+    const { session } = await connect(discord);
+    discord.dispatch("GUILD_CREATE", { id: GUILD, channels: [{ id: CHANNEL, type: 0, name: "tomrade-work" }] });
+    await new Promise(r => setTimeout(r, 20));
+    expect(await session.describe!({ tenantId: GUILD, conversationId: CHANNEL })).toEqual({ name: "#tomrade-work" });
+    expect(discord.where("GET", new RegExp(`^/channels/${CHANNEL}$`))).toEqual([]);
+    expect(await session.describe!({ tenantId: GUILD, conversationId: "61" })).toEqual({ name: "#asked-for" });
+    expect(await session.describe!({ tenantId: "@me", conversationId: DM })).toEqual({ name: "Tom" });
+    expect(await session.describe!({ tenantId: GUILD, conversationId: "404" })).toBeNull();
+  });
+
+  it("names the channels /tomrade setup allows", async () => {
+    const named: string[] = [];
+    const discord = new FakeDiscord();
+    await connect(discord, { host: { projects: () => [{ id: "p1", name: "Login" }], allow: r => { named.push(r.name ?? ""); return true; } } });
+    discord.interaction({ type: 2, channel: CHANNEL, guild: GUILD, user: OWNER, data: { name: "tomrade", options: [{ type: 1, name: "setup", options: [] }] } });
+    await until("the channels are allowed", () => named.length === 3);
+    expect(named).toEqual(["#tomrade-work", "#tomrade-status", "#tomrade-chat"]);
+  });
+});
+

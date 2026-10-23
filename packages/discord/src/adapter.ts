@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { ImDeliveryError, type ImAdapter, type ImAdapterSession, type ImAddress, type ImCapabilities, type ImCommand, type ImContextMessage, type ImDelivery, type ImInbound, type ImLink } from "@tomradex/plugin-sdk";
 import { Gateway, net, type Net } from "./gateway.js";
 import { projectChoices, setUp, setupCommand, setupOf } from "./setup.js";
-import { actorOf, addressOf, API, installLink, INTENTS, inboundMessage, isThread, MESSAGE_CONTENT, messageOf, parseControl, REACTIONS, threadName, threadOf, wantsContent, type DInteraction, type DMessage, type DOption, type Permission } from "./wire.js";
+import { actorOf, addressOf, API, installLink, INTENTS, inboundMessage, isThread, MESSAGE_CONTENT, messageOf, parseControl, REACTIONS, threadName, threadOf, wantsContent, type DInteraction, type DMessage, type DUser, type DOption, type Permission } from "./wire.js";
 
 export const CAPABILITIES: ImCapabilities = {
   edit: true, buttons: true, inboundFiles: true, outboundFiles: true,
@@ -102,7 +102,13 @@ export async function openDiscord(connectionId: string, io: IO, opts: { net?: Ne
 
   /** Channel → its type, for opening the right kind of thread in it. */
   const kinds = new Map<string, number>();
-  const learnChannel = (c: { id: string; type: number; parent_id?: string | null }) => { parents.set(c.id, isThread(c.type) ? c.parent_id ?? null : null); kinds.set(c.id, c.type); };
+  /** Channel → its name, for Settings to show instead of its id. */
+  const channelNames = new Map<string, string>();
+  const learnChannel = (c: { id: string; type: number; parent_id?: string | null; name?: string | null }) => {
+    parents.set(c.id, isThread(c.type) ? c.parent_id ?? null : null);
+    kinds.set(c.id, c.type);
+    if (c.name) channelNames.set(c.id, c.name);
+  };
   const parentOf = (id: string) => parents.get(id) ?? null;
   /** A thread's first message, read once per thread. */
   const roots = new Recent<ImContextMessage | null>(200);
@@ -267,6 +273,22 @@ export async function openDiscord(connectionId: string, io: IO, opts: { net?: Ne
   return {
     identity: { id: ready.user.id, name: ready.user.username },
     links: [install],
+
+    /** A server channel as `#name`; a direct chat by the person in it. */
+    async describe(address) {
+      const id = address.conversationId;
+      if (address.tenantId === "@me") {
+        const dm = await rest("GET", `/channels/${id}`).catch(() => null) as { recipients?: DUser[] } | null;
+        const who = dm?.recipients?.[0];
+        return who ? { name: who.global_name || who.username } : null;
+      }
+      if (!channelNames.has(id)) {
+        const c = await rest("GET", `/channels/${id}`).catch(() => null) as { id: string; type: number; parent_id?: string | null; name?: string } | null;
+        if (c) learnChannel(c);
+      }
+      const name = channelNames.get(id);
+      return name ? { name: `#${name}` } : null;
+    },
 
     deliver: (d: ImDelivery) => guarded(d.address, d.content.files?.length ? "Attach Files" : d.address.topicId || d.threadId ? "Send Messages in Threads" : "Send Messages", async () => {
       const channel = channelOf(d.address, d.threadId);

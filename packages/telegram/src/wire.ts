@@ -21,6 +21,12 @@ export interface TUpdate { update_id: number; message?: TMessage; edited_message
 /** Telegram has no workspaces: every chat a bot is in shares one tenant. */
 export const TENANT = "telegram";
 
+/** The admin rights the bot uses in a group: the ones its add-to-group link asks for. */
+export const ADMIN_RIGHTS = [["manage_topics", { en: "Manage Topics", zh: "管理话题" }]] as const;
+
+/** Adds the bot to a group the person picks, asking to make it an admin with exactly those rights. */
+export const addToGroup = (username: string) => `https://t.me/${username}?startgroup=tomrade&admin=${ADMIN_RIGHTS.map(([right]) => right).join("+")}`;
+
 export interface Bot { id: number; username: string }
 
 export const nameOf = (u: TUser) => [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || String(u.id);

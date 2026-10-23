@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
-import type { ImAdapterSession, ImDelivery, ImInbound } from "@tomradex/plugin-sdk";
+import type { ImAdapter, ImAdapterSession, ImDelivery, ImInbound, ImNotice } from "@tomradex/plugin-sdk";
 import { openSlack } from "../src/adapter.js";
 import { FakeSlack } from "../src/fake.js";
+import plugin from "../src/index.js";
 
 const open: { close(): void }[] = [];
 afterEach(() => { for (const o of open.splice(0)) o.close(); });
@@ -9,15 +10,19 @@ afterEach(() => { for (const o of open.splice(0)) o.close(); });
 async function connect(fake = new FakeSlack(), opts: { appToken?: string; botToken?: string; idleMs?: number; outbound?: Record<string, Uint8Array> } = {}) {
   const events: ImInbound[] = [];
   const states: string[] = [];
+  /** What the adapter told the host: notices, and `clear:<key>` once their cause went. */
+  const notices: (ImNotice | string)[] = [];
   const ac = new AbortController();
   const session = await openSlack("c1", {
     signal: ac.signal,
     credentials: { appToken: opts.appToken ?? fake.appToken, botToken: opts.botToken ?? fake.botToken },
     receive: async e => { events.push(e); return { receiptId: `r${events.length}` }; },
     status: s => { states.push(s); },
-    readOutboundFile: async id => opts.outbound?.[id] ?? new Uint8Array()
+    readOutboundFile: async id => opts.outbound?.[id] ?? new Uint8Array(),
+    notice: n => { notices.push(n); },
+    clearNotice: key => { notices.push(`clear:${key}`); }
   }, { net: fake.net(), backoffMs: 5, ...(opts.idleMs ? { idleMs: opts.idleMs } : {}) });
-  const handle = { fake, session, events, states, close: () => { ac.abort(); void session.close(); } };
+  const handle = { fake, session, events, states, notices, close: () => { ac.abort(); void session.close(); } };
   open.push(handle);
   return handle;
 }
@@ -523,3 +528,53 @@ describe("limits and indicators", () => {
     expect(fake.where("assistant.threads.setStatus")).toHaveLength(1);
   });
 });
+
+describe("using it in channels", () => {
+  const TITLE = "TOM-42 · Doing · Fix the login page";
+  const room = { tenantId: "T0FAKE", conversationId: "C0DEV" };
+
+  it("shows its own steps for channels in IM settings, in English and Chinese", async () => {
+    let adapter: ImAdapter | undefined;
+    await plugin.apply({ im: { register: async (a: ImAdapter) => { adapter = a; return () => {}; } } } as never, undefined as never);
+    const steps = adapter!.setup!.groupSteps! as { en: string; zh: string }[];
+    expect(steps.length).toBe(3);
+    expect(steps.every(s => s.en && s.zh)).toBe(true);
+    expect(steps[0]!.en).toContain("/invite @");
+  });
+
+  it("says once per channel that the bot is not a member, and clears it once a post works there", async () => {
+    const { fake, session, notices } = await connect();
+    fake.failNext(c => c.method === "chat.postMessage", 200, "not_in_channel", { times: 2 });
+    await expect(session.topics!.open({ operationId: "topic:1", address: room, title: TITLE })).rejects.toMatchObject({ disposition: "permanent" });
+    await expect(session.deliver(delivery({ channel: "C0DEV" }))).rejects.toMatchObject({ code: "not_in_channel" });
+    expect(notices).toEqual([{ key: "slack:C0DEV:member", address: room, text: { en: expect.stringContaining("`/invite @"), zh: expect.stringContaining("`/invite @") } }]);
+    await session.topics!.open({ operationId: "topic:2", address: room, title: TITLE });
+    expect(notices.at(-1)).toBe("clear:slack:C0DEV:member");
+  });
+
+  it("names the scope Slack says is missing, and says nothing for a direct message or another refusal", async () => {
+    const { fake, session, notices } = await connect();
+    fake.failNext(c => c.method === "reactions.add", 200, "missing_scope", { needed: "reactions:write" });
+    await expect(session.react!({ address: room, messageId: "1700000000.000001", reaction: "received" })).rejects.toMatchObject({ code: "missing_scope" });
+    fake.failNext(c => c.method === "chat.postMessage", 200, "not_in_channel");
+    await expect(session.deliver(delivery({ channel: "D0ANN" }))).rejects.toBeDefined();
+    fake.failNext(c => c.method === "chat.postMessage", 200, "msg_too_long");
+    await expect(session.deliver(delivery({ channel: "C0DEV" }))).rejects.toBeDefined();
+    expect(notices).toEqual([{ key: "slack:C0DEV:scope:reactions:write", address: room, text: { en: expect.stringContaining("`reactions:write` scope"), zh: expect.stringContaining("`reactions:write`") } }]);
+  });
+});
+
+describe("naming conversations", () => {
+  it("names a channel as #name and a direct message by the person in it, and nothing without the scope", async () => {
+    const { fake, session } = await connect();
+    fake.channels.set("C0DEV", "dev");
+    fake.dms.set("D0ANN", "U0ANN");
+    fake.users.set("U0ANN", "Ann");
+    expect(await session.describe!({ tenantId: "T0FAKE", conversationId: "C0DEV" })).toEqual({ name: "#dev" });
+    expect(await session.describe!({ tenantId: "T0FAKE", conversationId: "D0ANN" })).toEqual({ name: "Ann" });
+    expect(await session.describe!({ tenantId: "T0FAKE", conversationId: "C0GONE" })).toBeNull();
+    fake.noChannelScope = true;
+    expect(await session.describe!({ tenantId: "T0FAKE", conversationId: "C0DEV" })).toBeNull();
+  });
+});
+

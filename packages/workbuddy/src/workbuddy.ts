@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
-import { PERMISSION_CHOICES, type BundledCli, type LocalAgentSpec, type LocalCliHost } from "@tomradex/plugin-sdk";
+import { PERMISSION_CHOICES, type LocalAgentDesktopApp, type LocalAgentSpec } from "@tomradex/plugin-sdk";
 import { codebuddyAsk } from "./lend.js";
 import { workbuddyMcpLink } from "./link.js";
 
@@ -15,46 +15,16 @@ export const WorkBuddyOptions = z.object({
 });
 export type WorkBuddyOptions = z.infer<typeof WorkBuddyOptions>;
 
-const RUNTIMES = ["WorkBuddyAI.exe", "WorkBuddy AI.exe", "WorkBuddy.exe"];
-
-/** The app's own exe in its install folder, whatever this version calls it; the uninstaller is not it. */
-function windowsRuntime(dir: string): string {
-  let exes: string[] = [];
-  try { exes = fs.readdirSync(dir).filter((name) => /\.exe$/i.test(name) && !/^uninstall/i.test(name)); } catch {}
-  const exe = exes.find((name) => /workbuddy/i.test(name)) ?? exes[0];
-  return path.win32.join(dir, exe ?? RUNTIMES.find((name) => fs.existsSync(path.win32.join(dir, name))) ?? RUNTIMES[0]!);
-}
-
 /**
- * The CodeBuddy Code CLI the WorkBuddy desktop app ships, and the app's own
- * Electron binary that runs it — the way WorkBuddy starts it itself, so a
- * machine with the app but no Node can still use it. On Windows the app can be
- * anywhere, so where its installer registered it comes first.
+ * The WorkBuddy desktop app, named when it is installed but the CodeBuddy CLI
+ * is not. The copy of the CLI inside the app serves only the app: started on
+ * its own it gets no models, so Tomrade does not take it for the CLI.
  */
-export async function workbuddyApps(host: Pick<LocalCliHost, "platform" | "env" | "home" | "installs">): Promise<BundledCli[]> {
-  if (host.platform === "darwin") {
-    const p = path.posix;
-    return ["/Applications", p.join(host.home, "Applications")].flatMap((root) =>
-      ["WorkBuddy AI", "WorkBuddy"].map((app) => {
-        const contents = p.join(root, `${app}.app`, "Contents");
-        let binaries: string[] = [];
-        try { binaries = fs.readdirSync(p.join(contents, "MacOS")); } catch {}
-        return { file: p.join(contents, "Resources/app.asar.unpacked/cli/bin/codebuddy"), runtime: p.join(contents, "MacOS", binaries[0] ?? "Electron") };
-      })
-    );
-  }
-  if (host.platform === "win32") {
-    const w = path.win32;
-    const env = (key: string) => Object.entries(host.env).find(([name]) => name.toUpperCase() === key)?.[1];
-    const local = env("LOCALAPPDATA") ?? w.join(host.home, "AppData", "Local");
-    const roots = [w.join(local, "Programs"), local, env("PROGRAMFILES"), env("PROGRAMFILES(X86)")].filter((dir): dir is string => !!dir);
-    const guessed = roots.flatMap((root) => ["WorkBuddy AI", "WorkBuddyAI", "workbuddy-ai", "WorkBuddy"].map((folder) => w.join(root, folder)));
-    const registered = await host.installs(/workbuddy/i).catch(() => []);
-    const dirs = [...registered, ...guessed].filter((dir, i, all) => all.findIndex((d) => d.toLowerCase() === dir.toLowerCase()) === i);
-    return dirs.map((dir) => ({ file: w.join(dir, "resources", "app.asar.unpacked", "cli", "bin", "codebuddy"), runtime: windowsRuntime(dir) }));
-  }
-  return [];
-}
+export const WORKBUDDY_APP: LocalAgentDesktopApp = {
+  title: "WorkBuddy",
+  mac: ["WorkBuddy", "WorkBuddy AI"],
+  windows: ["Programs\\WorkBuddy", "Programs\\WorkBuddy AI", "Programs\\WorkBuddyAI", "Programs\\workbuddy-ai", "WorkBuddy", "WorkBuddy AI"]
+};
 
 /** CodeBuddy reports each model request's tokens, OpenAI-style, inside a usage update's `_meta`. */
 export function codebuddyUsage(update: Record<string, any>): { input: number; output: number; cacheRead?: number; cacheWrite?: number } | null {
@@ -103,15 +73,16 @@ export function newestLogs(dir: string, keep: (name: string) => boolean, limit =
   }
 }
 
-const SIGN_IN = "run `codebuddy` and /login with your WorkBuddy account";
+const SIGN_IN = "sign in to CodeBuddy: run `codebuddy` and type /login";
 
 export const workbuddy: LocalAgentSpec<WorkBuddyOptions> = {
   id: "workbuddy",
-  title: "WorkBuddy",
-  cli: { name: "codebuddy", bundled: workbuddyApps },
-  install: "install WorkBuddy (workbuddy.ai), or its CLI with {install}",
-  // The WorkBuddy app's own copy of the CLI is found without any install; inside codebuddy, /login signs in.
-  setup: { install: ["npm install -g @tencent-ai/codebuddy-code"], signIn: "codebuddy", signInRuns: true, docs: "https://www.workbuddy.ai/docs/cli/overview" },
+  // It runs on the CodeBuddy CLI, which installing WorkBuddy does not give; the name says so.
+  title: "CodeBuddy (WorkBuddy)",
+  cli: { name: "codebuddy", desktopApp: WORKBUDDY_APP },
+  install: "install the CodeBuddy CLI, which the WorkBuddy app does not include, with {install} (https://www.codebuddy.ai/docs/cli/installation), then run `codebuddy` and type /login",
+  // Inside codebuddy, /login signs in.
+  setup: { install: [{ npm: "@tencent-ai/codebuddy-code" }], signIn: "codebuddy", signInRuns: true, docs: "https://www.codebuddy.ai/docs/cli/installation", download: "https://www.codebuddy.ai/docs/cli/installation", desktop: { title: "WorkBuddy", shipsCli: false } },
   options: WorkBuddyOptions,
   acp: {
     permissionModes: { default: "full-access", choices: [PERMISSION_CHOICES["full-access"], PERMISSION_CHOICES.ask, PERMISSION_CHOICES["read-only"]] },

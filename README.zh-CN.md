@@ -62,7 +62,7 @@
 | [`tomrade/opencode`](packages/opencode) | OpenCode，走 ACP 或在终端里跑，它配好的模型服务也借给后台用 |
 | [`tomrade/hermes`](packages/hermes) | Nous Research 的 Hermes Agent，走 ACP 或在终端里跑 |
 | [`tomrade/dsh`](packages/dsh) | DeepSeek Harness，走 ACP 或在终端里跑，装在它桌面应用里的那份也能找到 |
-| [`tomrade/workbuddy`](packages/workbuddy) | 腾讯的 WorkBuddy，通过 CodeBuddy CLI 或应用自带的那份 |
+| [`tomrade/workbuddy`](packages/workbuddy) | 腾讯的 WorkBuddy，通过 CodeBuddy CLI 运行（需单独安装，WorkBuddy 桌面版不带） |
 
 Claude Code、Codex 和 Pi 直接内置在 Tomrade 里。
 

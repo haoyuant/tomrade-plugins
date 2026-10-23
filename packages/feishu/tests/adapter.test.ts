@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
-import type { ImAdapterSession, ImDelivery, ImInbound } from "@tomradex/plugin-sdk";
+import type { ImAdapter, ImAdapterSession, ImDelivery, ImInbound, ImNotice } from "@tomradex/plugin-sdk";
 import { openFeishu } from "../src/adapter.js";
 import { FakeFeishu } from "../src/fake.js";
+import plugin from "../src/index.js";
 
 const open: { close(): void }[] = [];
 afterEach(() => { for (const o of open.splice(0)) o.close(); });
@@ -9,15 +10,19 @@ afterEach(() => { for (const o of open.splice(0)) o.close(); });
 async function connect(fake = new FakeFeishu(), opts: { livenessMs?: number; secret?: string; outbound?: Record<string, Uint8Array> } = {}) {
   const events: ImInbound[] = [];
   const states: string[] = [];
+  /** What the adapter told the host: notices, and `clear:<key>` once their cause went. */
+  const notices: (ImNotice | string)[] = [];
   const ac = new AbortController();
   const session = await openFeishu("c1", {
     signal: ac.signal,
     credentials: { appId: fake.appId, appSecret: opts.secret ?? fake.appSecret },
     receive: async e => { events.push(e); return { receiptId: `r${events.length}` }; },
     status: s => { states.push(s); },
-    readOutboundFile: async id => opts.outbound?.[id] ?? new Uint8Array()
+    readOutboundFile: async id => opts.outbound?.[id] ?? new Uint8Array(),
+    notice: n => { notices.push(n); },
+    clearNotice: key => { notices.push(`clear:${key}`); }
   }, { domain: "feishu", net: fake.net(), backoffMs: 5, ...(opts.livenessMs ? { livenessMs: opts.livenessMs } : {}) });
-  const handle = { fake, session, events, states, close: () => { ac.abort(); void session.close(); } };
+  const handle = { fake, session, events, states, notices, close: () => { ac.abort(); void session.close(); } };
   open.push(handle);
   return handle;
 }
@@ -362,3 +367,50 @@ describe("ticket topics", () => {
     await expect(session.topics!.update({ address: { ...group, topicId: "om_gone" }, title: TITLE, closed: true })).rejects.toMatchObject({ disposition: "permanent" });
   });
 });
+describe("using it in a group", () => {
+  const post = (c: { method: string; path: string }) => c.method === "POST" && c.path === "/open-apis/im/v1/messages";
+
+  it("says once per group that the bot left it, and clears it once a post works there", async () => {
+    const { fake, session, notices } = await connect();
+    fake.failNext(post, 400, 230002, { times: 2 });
+    for (let i = 0; i < 2; i++) await expect(session.deliver(delivery({ chat: "oc_g" }))).rejects.toMatchObject({ code: 230002 });
+    expect(notices).toEqual([{ key: "feishu:oc_g:230002", address: { tenantId: "tenant-1", conversationId: "oc_g" }, text: { en: expect.stringContaining("no longer in this group"), zh: expect.stringContaining("不在这个群里") } }]);
+    await session.deliver(delivery({ chat: "oc_g" }));
+    expect(notices.at(-1)).toBe("clear:feishu:oc_g:230002");
+  });
+
+  it("names the permissions Feishu says the app is missing, with the console page that grants them", async () => {
+    const { fake, session, notices } = await connect();
+    fake.failNext(post, 400, 99991672, { msg: "Access denied. One of the following scopes is required: [im:message, im:message:send_as_bot]." });
+    await expect(session.topics!.open({ operationId: "topic:1", address: { tenantId: "tenant-1", conversationId: "oc_g" }, title: "TOM-42 · Doing · Fix" })).rejects.toBeDefined();
+    fake.failNext(post, 400, 230020 + 1);
+    await expect(session.deliver(delivery({ chat: "oc_g" }))).rejects.toBeDefined();
+    expect(notices).toEqual([{ key: "feishu:oc_g:99991672", address: { tenantId: "tenant-1", conversationId: "oc_g" },
+      text: { en: expect.stringContaining("(im:message, im:message:send_as_bot)"), zh: expect.stringContaining("（im:message, im:message:send_as_bot）") },
+      link: { label: { en: "Open the developer console", zh: "打开开放平台" }, url: `https://open.feishu.cn/app/${fake.appId}/auth` } }]);
+  });
+
+  it("shows its own steps for a group in IM settings, in English and Chinese", async () => {
+    const adapters: ImAdapter[] = [];
+    await plugin.apply({ im: { register: async (a: ImAdapter) => { adapters.push(a); return () => {}; } } } as never, undefined as never);
+    expect(adapters.length).toBeGreaterThan(0);
+    for (const a of adapters) {
+      const steps = a.setup!.groupSteps! as { en: string; zh: string }[];
+      expect(steps).toHaveLength(3);
+      expect(steps.every(s => s.en && s.zh)).toBe(true);
+    }
+  });
+});
+
+describe("naming conversations", () => {
+  it("names a group by its name, and nothing when Feishu gives none", async () => {
+    const { fake, session } = await connect();
+    fake.chats.set("oc_g", "group");
+    fake.chatNames.set("oc_g", "Tomrade 工作群");
+    fake.chats.set("oc_dm", "p2p");
+    expect(await session.describe!({ tenantId: "tenant-1", conversationId: "oc_g" })).toEqual({ name: "Tomrade 工作群" });
+    expect(await session.describe!({ tenantId: "tenant-1", conversationId: "oc_dm" })).toBeNull();
+    expect(await session.describe!({ tenantId: "tenant-1", conversationId: "oc_unknown" })).toBeNull();
+  });
+});
+

@@ -4,6 +4,13 @@ Talk to a Tomrade project's assistant from DingTalk (钉钉): direct chats, and 
 
 Set it up in Settings → IM → Connect a bot → 钉钉 DingTalk. The wizard lists the developer-console steps: an internal app with the Robot capability in Stream mode, its Client ID and Client Secret (stored encrypted on this computer), the robot and card permissions, and a published version. The RobotCode and an AI card template ID are optional.
 
+## Use it in a group
+
+1. **Connect and pair** in Settings → IM, then send the robot the pairing code from Tomrade in a direct chat.
+2. **Add the robot to the group:** **Settings → Robots → Add robot**, and pick it.
+3. **Allow it.** @mention the bot in the group and choose **Work**, **Status** or **Chat**. A group hears nothing until it is allowed.
+4. **Work.** DingTalk groups have no topics: in a work group, each ticket's news is a line in the group.
+
 What the adapter does:
 
 - Stream mode: registers for a socket address and a single-use ticket, subscribes to robot messages and card callbacks, and answers every frame, pings included. A `disconnect` notice, or a socket that has heard nothing for three minutes, brings a new connection up before the old one closes; a drop reconnects with backoff through a fresh ticket. A message DingTalk delivers twice runs once.

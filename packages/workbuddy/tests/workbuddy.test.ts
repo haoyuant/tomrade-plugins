@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NotSignedIn, type LocalAgentSpec, type PluginContext } from "@tomradex/plugin-sdk";
 import plugin from "../src/index.js";
-import { codebuddyFailure, codebuddyUsage, helpModels, newestLogs, WorkBuddyOptions, workbuddy, workbuddyApps } from "../src/workbuddy.js";
+import { codebuddyFailure, codebuddyUsage, helpModels, newestLogs, WORKBUDDY_APP, WorkBuddyOptions, workbuddy } from "../src/workbuddy.js";
 import { ownModel } from "../src/lend.js";
 import { codebuddyUserFile, workbuddyMcpLink } from "../src/link.js";
 import { MCP, fakeCli, io } from "./cli.js";
@@ -47,43 +47,15 @@ it("lists the models `codebuddy --help` names", () => {
   expect(helpModels("Usage: codebuddy")).toEqual([]);
 });
 
-const noInstalls = async () => [];
-
-it("knows where the WorkBuddy app keeps its CLI and the binary that runs it", async () => {
-  expect(workbuddy.cli.bundled).toBe(workbuddyApps);
-  const mac = await workbuddyApps({ platform: "darwin", env: {}, home: "/Users/a", installs: noInstalls });
-  expect(mac).toContainEqual({ file: "/Applications/WorkBuddy AI.app/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy", runtime: expect.stringMatching(/^\/Applications\/WorkBuddy AI\.app\/Contents\/MacOS\//) });
-  expect(mac.map((app) => app.file)).toContain("/Users/a/Applications/WorkBuddy.app/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy");
-  const win = await workbuddyApps({ platform: "win32", env: { LocalAppData: "C:\\Users\\a\\AppData\\Local" }, home: "C:\\Users\\a", installs: noInstalls });
-  expect(win).toContainEqual({ file: "C:\\Users\\a\\AppData\\Local\\Programs\\WorkBuddy AI\\resources\\app.asar.unpacked\\cli\\bin\\codebuddy", runtime: "C:\\Users\\a\\AppData\\Local\\Programs\\WorkBuddy AI\\WorkBuddyAI.exe" });
-  expect(await workbuddyApps({ platform: "linux", env: {}, home: "/home/a", installs: noInstalls })).toEqual([]);
-});
-
-it("finds the WorkBuddy app on Windows wherever it was installed, whatever its exe is called", async () => {
-  // The install folders below hold these files; nothing else exists.
-  const folders: Record<string, string[]> = {
-    "D:\\Apps\\WB": ["WorkBuddy Desktop.exe", "Uninstall WorkBuddy Desktop.exe", "resources"],
-    "C:\\Program Files (x86)\\WorkBuddy": ["Uninstall WorkBuddy.exe", "wb.exe"]
-  };
-  vi.spyOn(fs, "readdirSync").mockImplementation(((dir: string) => {
-    if (folders[dir]) return folders[dir];
-    throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
-  }) as typeof fs.readdirSync);
-  const asked: RegExp[] = [];
-  const apps = await workbuddyApps({
-    platform: "win32",
-    env: { LOCALAPPDATA: "C:\\Users\\a\\AppData\\Local", ProgramFiles: "C:\\Program Files", "ProgramFiles(x86)": "C:\\Program Files (x86)" },
-    home: "C:\\Users\\a",
-    installs: async (name) => { asked.push(name); return ["D:\\Apps\\WB"]; }
-  });
-  expect(asked[0]!.test("WorkBuddy AI 1.4.0")).toBe(true);
-  // Where the installer registered it comes first, with the exe this version ships.
-  expect(apps[0]).toEqual({ file: "D:\\Apps\\WB\\resources\\app.asar.unpacked\\cli\\bin\\codebuddy", runtime: "D:\\Apps\\WB\\WorkBuddy Desktop.exe" });
-  expect(apps).toContainEqual({ file: "C:\\Program Files (x86)\\WorkBuddy\\resources\\app.asar.unpacked\\cli\\bin\\codebuddy", runtime: "C:\\Program Files (x86)\\WorkBuddy\\wb.exe" });
-  expect(apps.map((app) => app.file)).toContain("C:\\Users\\a\\AppData\\Local\\WorkBuddy AI\\resources\\app.asar.unpacked\\cli\\bin\\codebuddy");
-  // A failed registry read still leaves the usual folders.
-  const unread = await workbuddyApps({ platform: "win32", env: {}, home: "C:\\Users\\a", installs: async () => { throw new Error("reg.exe"); } });
-  expect(unread.length).toBeGreaterThan(0);
+it("needs the CodeBuddy CLI itself: the WorkBuddy app alone is named, not taken for it", () => {
+  // The copy inside the app gets no models on its own, so it is never looked for.
+  expect(workbuddy.cli).toEqual({ name: "codebuddy", desktopApp: WORKBUDDY_APP });
+  expect(WORKBUDDY_APP.title).toBe("WorkBuddy");
+  expect(WORKBUDDY_APP.mac).toEqual(["WorkBuddy", "WorkBuddy AI"]);
+  // Its installer's default, per user, and a machine-wide one under Program Files.
+  expect(WORKBUDDY_APP.windows).toEqual(expect.arrayContaining(["Programs\\WorkBuddy", "WorkBuddy"]));
+  // "not found — …" says what to install, that the app does not include it, and how to sign in.
+  expect(workbuddy.install).toBe("install the CodeBuddy CLI, which the WorkBuddy app does not include, with {install} (https://www.codebuddy.ai/docs/cli/installation), then run `codebuddy` and type /login");
 });
 
 it("runs `codebuddy --acp`, bypassing its prompts only for a full-access turn, and seeds the models from its help", () => {
@@ -94,9 +66,8 @@ it("runs `codebuddy --acp`, bypassing its prompts only for a full-access turn, a
   expect(acp).toMatchObject({ steer: "method", terminal: true, failure: codebuddyFailure });
   expect(acp).not.toHaveProperty("terminalViaLink");
   expect(acp.permissionModes).toEqual({ default: "full-access", choices: [{ value: "full-access", label: "Full access" }, { value: "ask", label: "Ask permissions" }, { value: "read-only", label: "Read only" }] });
-  expect(workbuddy).toMatchObject({ id: "workbuddy", title: "WorkBuddy", cli: { name: "codebuddy" }, signIn: "run `codebuddy` and /login with your WorkBuddy account", lend: { rank: 20 } });
-  expect(workbuddy.install).toBe("install WorkBuddy (workbuddy.ai), or its CLI with {install}");
-  expect(workbuddy.setup).toEqual({ install: ["npm install -g @tencent-ai/codebuddy-code"], signIn: "codebuddy", signInRuns: true, docs: "https://www.workbuddy.ai/docs/cli/overview" });
+  expect(workbuddy).toMatchObject({ id: "workbuddy", title: "CodeBuddy (WorkBuddy)", cli: { name: "codebuddy" }, signIn: "sign in to CodeBuddy: run `codebuddy` and type /login", lend: { rank: 20 } });
+  expect(workbuddy.setup).toEqual({ install: [{ npm: "@tencent-ai/codebuddy-code" }], signIn: "codebuddy", signInRuns: true, docs: "https://www.codebuddy.ai/docs/cli/installation", download: "https://www.codebuddy.ai/docs/cli/installation", desktop: { title: "WorkBuddy", shipsCli: false } });
   expect(WorkBuddyOptions.parse({})).toEqual({ command: "codebuddy" });
   const catalog = { models: [] as { value: string }[], efforts: [] };
   expect(workbuddy.probe!.args).toEqual(["--help"]);
@@ -216,14 +187,14 @@ describe("CodeBuddy answering worker calls", () => {
     // the instructions file goes with the call
     expect(fs.existsSync(path.dirname(echoed.args[10]!))).toBe(false);
 
-    await expect(ask("FAIL")).rejects.toThrow(/WorkBuddy could not answer: 400 model \[nope\]/);
+    await expect(ask("FAIL")).rejects.toThrow(/CodeBuddy could not answer: 400 model \[nope\]/);
   }, 30_000);
 
   it("says it is not signed in while CodeBuddy says so, and how to sign in", async () => {
     const { log, calls, ask } = setup();
     fs.writeFileSync(log + ".signed-out", "");
     const failed = ask("plan it");
-    await expect(failed).rejects.toThrow(/WorkBuddy is not signed in \(Authentication required.*\) — run `codebuddy` and \/login with your WorkBuddy account/);
+    await expect(failed).rejects.toThrow(/CodeBuddy is not signed in \(Authentication required.*\) — sign in to CodeBuddy: run `codebuddy` and type \/login/);
     await expect(failed).rejects.toBeInstanceOf(NotSignedIn);
     expect(calls()).toHaveLength(1);
   }, 30_000);

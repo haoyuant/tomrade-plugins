@@ -18,7 +18,8 @@ const UNSENT = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "ENETUNREACH",
 const causeOf = (e: unknown) => String((e as { cause?: { code?: unknown } } | null)?.cause?.code ?? "");
 
 export class SlackError extends ImDeliveryError {
-  constructor(message: string, disposition: "retryable" | "uncertain" | "permanent", readonly code?: string, retryAfterMs?: number) {
+  /** `needed`: the scope Slack named for a missing_scope. */
+  constructor(message: string, disposition: "retryable" | "uncertain" | "permanent", readonly code?: string, retryAfterMs?: number, readonly needed?: string) {
     super(message, disposition, retryAfterMs);
   }
 }
@@ -49,13 +50,13 @@ export class Api {
       const wait = Number(res.headers.get("retry-after"));
       throw new SlackError("Slack rate limit", "retryable", "ratelimited", (Number.isFinite(wait) && wait > 0 ? wait : 1) * 1000);
     }
-    const answer = await res.json().catch(() => null) as (Args & { ok?: boolean; error?: string }) | null;
+    const answer = await res.json().catch(() => null) as (Args & { ok?: boolean; error?: string; needed?: string }) | null;
     if (res.ok && answer?.ok) return answer as T;
     const code = answer?.error;
     if (res.status >= 500 || code === "internal_error" || code === "fatal_error") throw new SlackError(`Slack error (${code ?? res.status})`, unknown, code);
     if (code === "ratelimited" || code === "service_unavailable" || code === "request_timeout") throw new SlackError(`Slack is busy (${code})`, "retryable", code, 1000);
     if (code && AUTH_LOST.has(code)) this.onAuthLost?.(code);
-    throw new SlackError(`Slack refused ${method} (${code ?? res.status})`, "permanent", code);
+    throw new SlackError(`Slack refused ${method} (${code ?? res.status})`, "permanent", code, undefined, typeof answer?.needed === "string" ? answer.needed : undefined);
   }
 
   /** A file's private URL, read with the bot token; `mimeType` is what Slack said the file is. */

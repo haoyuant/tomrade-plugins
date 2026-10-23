@@ -62,7 +62,7 @@ Using something else? An IM adapter is just a plugin. Copy one of these, or ask 
 | [`tomrade/opencode`](packages/opencode) | OpenCode, over ACP or in a terminal, with its providers lent to the worker |
 | [`tomrade/hermes`](packages/hermes) | Hermes Agent from Nous Research, over ACP or in a terminal |
 | [`tomrade/dsh`](packages/dsh) | DeepSeek Harness, over ACP or in a terminal, found inside its desktop app too |
-| [`tomrade/workbuddy`](packages/workbuddy) | WorkBuddy from Tencent, through its CodeBuddy CLI or the app's own copy |
+| [`tomrade/workbuddy`](packages/workbuddy) | WorkBuddy from Tencent, through the CodeBuddy CLI (installed on its own; the WorkBuddy app does not bring it) |
 
 Claude Code, Codex and Pi are built into Tomrade itself.
 
