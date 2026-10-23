@@ -23,7 +23,8 @@
     }
   },
   "inject": [
-    "agent"
+    "agent",
+    "settings"
   ],
   "optional": [],
   "contributes": {

@@ -1,15 +1,14 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import type { LocalAgentMcpLink } from "@tomradex/plugin-sdk";
+import { codebuddyConfigDir } from "./config.js";
 import type { WorkBuddyOptions } from "./workbuddy.js";
 
 export const MCP_NAME = "tomrade";
 
 /** CodeBuddy keeps user-scope servers in `.mcp.json` inside CODEBUDDY_CONFIG_DIR, else `~/.codebuddy`. */
 export function codebuddyUserFile(env: NodeJS.ProcessEnv = process.env): string {
-  const dir = env.CODEBUDDY_CONFIG_DIR?.trim() || path.join(os.homedir(), ".codebuddy");
-  return path.join(dir, ".mcp.json");
+  return path.join(codebuddyConfigDir(env), ".mcp.json");
 }
 
 /** WorkBuddy's own sessions reach Tomrade through a user-scope `tomrade` server, changed with `codebuddy mcp add|remove`. */
