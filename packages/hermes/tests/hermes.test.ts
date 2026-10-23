@@ -7,6 +7,7 @@ import { parse } from "yaml";
 import { NotSignedIn, type LocalAgentSpec, type PluginContext } from "@tomradex/plugin-sdk";
 import plugin from "../src/index.js";
 import { HermesOptions, hermes, hermesAcpReady } from "../src/hermes.js";
+import { fitsCommandLine } from "../src/command-line.js";
 import { hermesAsk } from "../src/lend.js";
 import { hermesConfigFile, hermesMcpLink, hermesPlugin, hermesPluginDir, TOKEN_HEADER } from "../src/link.js";
 import { MCP, fakeCli, io } from "./cli.js";
@@ -28,7 +29,7 @@ it("registers Hermes as a local agent", async () => {
   const registered: LocalAgentSpec<HermesOptions>[] = [];
   const ctx = { agent: { localAgent: async (spec: LocalAgentSpec<HermesOptions>) => (registered.push(spec), () => {}) } } as unknown as PluginContext;
   await (plugin as unknown as { apply(ctx: PluginContext): Promise<void> }).apply(ctx);
-  expect(registered).toEqual([hermes]);
+  expect(registered).toEqual([{ ...hermes, lend: { rank: 60, ask: expect.any(Function) } }]);
 });
 
 it("reads `hermes acp --check`: ready, missing its ACP extra, or something else", () => {
@@ -173,9 +174,36 @@ describe("Hermes answering worker calls", () => {
     await expect(ask("FAIL")).rejects.toThrow(/Hermes could not answer: HTTP 500: upstream exploded/);
   }, 30_000);
 
+  it("refuses a request this platform's command line cannot hold, in the app's language, before starting Hermes", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fake-hermes-lent-"));
+    const log = path.join(dir, "calls.jsonl");
+    process.env.TOMRADE_TEST_LOG = log;
+    try {
+      const huge = { system: "Reply in JSON.", transcript: "x".repeat(2 * 1024 * 1024) };
+      const cli = io(fakeCli(fakeHermes(dir)), { command: "hermes" });
+      await expect(hermesAsk(huge, cli)).rejects.toThrow(/too long for this computer's command line/);
+      await expect(hermesAsk(huge, cli, "zh-CN")).rejects.toThrow(/请求太长/);
+      expect(fs.existsSync(log)).toBe(false);
+    } finally {
+      delete process.env.TOMRADE_TEST_LOG;
+    }
+  }, 30_000);
+
   it("says it is not signed in while Hermes has no model it can use, and how to fix it", async () => {
     const failed = ask("SIGNED_OUT");
     await expect(failed).rejects.toThrow(/Hermes has no model it can use \(.*hermes model.*\) — run `hermes setup`/);
     await expect(failed).rejects.toBeInstanceOf(NotSignedIn);
   }, 30_000);
+});
+
+it("counts a command line in bytes per argument on Linux, bytes in all on macOS, and UTF-16 units of the whole line on Windows", () => {
+  const rest = ["hermes", "-t", "todo", "--ignore-rules"];
+  expect(fitsCommandLine(["x".repeat(120_000), ...rest], "linux")).toBe(true);
+  expect(fitsCommandLine(["x".repeat(131_072), ...rest], "linux")).toBe(false);
+  expect(fitsCommandLine(["中".repeat(44_000), ...rest], "linux")).toBe(false);
+  expect(fitsCommandLine(["x".repeat(600_000), ...rest], "darwin")).toBe(true);
+  expect(fitsCommandLine(["x".repeat(900_000), ...rest], "darwin")).toBe(false);
+  expect(fitsCommandLine(["中".repeat(30_000), ...rest], "win32")).toBe(true);
+  expect(fitsCommandLine(["x".repeat(32_000), ...rest], "win32")).toBe(false);
+  expect(fitsCommandLine(['"'.repeat(16_000), ...rest], "win32")).toBe(false);
 });
