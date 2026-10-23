@@ -21,5 +21,6 @@ export default async function scenario(t: { check(name: string, ok: boolean, det
   t.check("that can also take a ticket in a terminal, takes messages mid-turn, and connects its own sessions", !!engine?.terminal && !engine.terminalViaLink && !!engine.steers && engine.mcpLink, seen);
   t.check("full access by default, asking, or read only", engine?.permissionModes?.default === "full-access" && engine.permissionModes.choices.map((c) => c.value).join() === "full-access,ask,read-only", seen);
   t.check("installs the CodeBuddy CLI with npm and signs in inside `codebuddy`", engine?.setup?.install.join() === "npm install -g @tencent-ai/codebuddy-code" && engine.setup.signIn === "codebuddy" && !!engine.setup.signInRuns, seen);
-  t.check("whose models come from its help and its sessions", engine?.picks.map((p) => p.key).join() === "model", seen);
+  t.check("whose models come from its help and its sessions", engine?.picks.map((p) => p.key).join() === "region,model", seen);
+  t.check("and whose edition is a machine-wide pick", engine?.picks[0]?.global === true && engine.picks[0].title === "Version", seen);
 }
