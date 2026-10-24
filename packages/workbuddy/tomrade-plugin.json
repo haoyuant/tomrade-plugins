@@ -1,6 +1,6 @@
 {
   "id": "tomrade/workbuddy",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "title": "CodeBuddy (WorkBuddy)",
   "description": "WorkBuddy from Tencent as a coding agent in Tomrade, through the CodeBuddy CLI (`codebuddy`), which the WorkBuddy app does not include: conversations and tickets run on it over ACP with Tomrade's tools, a ticket can also go to it in a terminal, its own sessions report to Tomrade once connected, and its sign-in answers Tomrade's background calls.",
   "license": "Apache-2.0",

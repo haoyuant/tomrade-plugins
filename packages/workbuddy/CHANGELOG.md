@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- The CodeBuddy edition picked in Tomrade (international or China) is written into CodeBuddy's own settings as well as the session, so its sign-in and a later run in a terminal use the same edition. A settings file that cannot be read is left alone. Reads Tomrade's settings for that pick.
+
 ## 0.2.1
 
 - Set up installs the CodeBuddy CLI in one click: Tomrade runs the npm install itself (the system's npm, or its own when there is none), then opens a terminal for the `/login` and watches it. Needs Tomrade with plugin SDK 0.2.26.
