@@ -146,5 +146,7 @@ export const workbuddy: LocalAgentSpec<WorkBuddyOptions> = {
     reason: ""
   },
   mcpLink: workbuddyMcpLink,
-  lend: { rank: 20, ask: codebuddyAsk(SIGN_IN) }
+  lend: { rank: 20, ask: codebuddyAsk(SIGN_IN) },
+  // Claude Code's prompt: it opens on "1. Yes" (Enter takes it); Esc is "No, and tell CodeBuddy what to do differently"
+  approval: { allow: ["enter"], deny: ["esc"] }
 };

@@ -43,5 +43,7 @@ export const gemini: LocalAgentSpec<GeminiOptions> = {
   // Its sessions under ~/.gemini/tmp, so an ended one in a terminal shows its conversation.
   record: geminiRecord,
   // Gemini CLI answers one prompt headless, so its sign-in can do worker calls too.
-  lend: { rank: 40, ask: geminiAsk }
+  lend: { rank: 40, ask: geminiAsk },
+  // Its tool prompt ("Allow execution of [Shell]?") opens on "Allow once" (Enter takes it); Esc is its "No, suggest changes (esc)"
+  approval: { allow: ["enter"], deny: ["esc"] }
 };

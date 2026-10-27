@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- A session waiting on CodeBuddy's permission prompt in a terminal can be answered from Tomrade: Allow presses Enter on the "Yes" the prompt opens on, Deny presses Esc ("No, and tell CodeBuddy what to do differently"). Shown by Tomrade with plugin SDK 0.2.30, and only while the pane shows a prompt Tomrade recognises ("Do you want to proceed?"); an older Tomrade ignores it.
+
 ## 0.2.2
 
 - The CodeBuddy edition picked in Tomrade (international or China) is written into CodeBuddy's own settings as well as the session, so its sign-in and a later run in a terminal use the same edition. A settings file that cannot be read is left alone. Reads Tomrade's settings for that pick.

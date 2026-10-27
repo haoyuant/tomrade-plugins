@@ -83,5 +83,7 @@ export const agy: LocalAgentSpec<AgyOptions> = {
   // Its transcripts under ~/.gemini/antigravity-cli/brain, so an ended session in a terminal shows its conversation.
   record: agyRecord,
   // Every call carries agy's own tool definitions (about 12k tokens).
-  lend: { rank: 75, ask: agyAsk }
+  lend: { rank: 75, ask: agyAsk },
+  // Its prompt ("Run this command?") opens on "1. Yes, run command" (Enter takes it); Esc cancels the call and asks what to do instead
+  approval: { allow: ["enter"], deny: ["esc"] }
 };
