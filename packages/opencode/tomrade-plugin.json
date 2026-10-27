@@ -9,7 +9,7 @@
   },
   "repository": "https://github.com/haoyuant/tomrade-plugins",
   "engines": {
-    "sdk": "^0.2.26"
+    "sdk": "^0.2.29"
   },
   "main": "dist/index.js",
   "icon": "icon.svg",
@@ -18,7 +18,7 @@
     "fs": "any",
     "exec": true,
     "why": {
-      "fs": "Connecting OpenCode adds a tomrade server to ~/.config/opencode/opencode.json and writes Tomrade's reporting plugin to ~/.config/opencode/plugins/tomrade.js; a background call keeps its one-call config in a temporary folder.",
+      "fs": "Connecting OpenCode adds a tomrade server to ~/.config/opencode/opencode.json and writes Tomrade's reporting plugin to ~/.config/opencode/plugins/tomrade.js; a background call keeps its one-call config in a temporary folder. It reads OpenCode's own session database (~/.local/share/opencode) to show an ended session's conversation.",
       "exec": "Runs your own `opencode` command: `opencode acp` for conversations, `opencode models` to list its models, and `opencode run` for background calls."
     }
   },

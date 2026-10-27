@@ -9,7 +9,7 @@
   },
   "repository": "https://github.com/haoyuant/tomrade-plugins",
   "engines": {
-    "sdk": "^0.2.26"
+    "sdk": "^0.2.29"
   },
   "main": "dist/index.js",
   "icon": "icon.svg",
@@ -18,7 +18,7 @@
     "fs": "any",
     "exec": true,
     "why": {
-      "fs": "Connecting Cursor adds a tomrade server to ~/.cursor/mcp.json (your other servers are kept), and a background call runs in a folder of its own under the temporary directory.",
+      "fs": "Connecting Cursor adds a tomrade server to ~/.cursor/mcp.json (your other servers are kept), and a background call runs in a folder of its own under the temporary directory. It reads the transcripts cursor-agent keeps under ~/.cursor/projects to show an ended session's conversation.",
       "exec": "Runs your own `cursor-agent` command: `cursor-agent acp` for conversations and tickets, `cursor-agent status` to see whether it is signed in, and `cursor-agent -p` in ask mode for background calls."
     }
   },

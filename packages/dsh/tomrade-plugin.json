@@ -9,7 +9,7 @@
   },
   "repository": "https://github.com/haoyuant/tomrade-plugins",
   "engines": {
-    "sdk": "^0.2.26"
+    "sdk": "^0.2.29"
   },
   "main": "dist/index.js",
   "icon": "icon.svg",
@@ -18,7 +18,7 @@
     "fs": "any",
     "exec": true,
     "why": {
-      "fs": "A background call writes a one-run dsh plugin, its patch and its session into a temporary folder that is removed afterwards, and runs in an empty temporary folder of its own.",
+      "fs": "A background call writes a one-run dsh plugin, its patch and its session into a temporary folder that is removed afterwards, and runs in an empty temporary folder of its own. It reads the session logs dsh keeps under ~/.dsh/sessions to show an ended session's conversation.",
       "exec": "Runs your own `dsh` command, or the one inside the DeepSeek Harness app: `dsh --profile acp` for conversations and `dsh --profile headless` for background calls."
     }
   },

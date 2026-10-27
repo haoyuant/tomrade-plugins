@@ -2,6 +2,7 @@ import { z } from "zod";
 import { PERMISSION_CHOICES, type LocalAgentSpec } from "@tomradex/plugin-sdk";
 import { GEMINI_SIGN_IN, geminiCanSignIn } from "./auth.js";
 import { geminiAsk } from "./lend.js";
+import { geminiRecord } from "./record.js";
 
 export const GeminiOptions = z.object({
   command: z.string().default("gemini"),
@@ -39,6 +40,8 @@ export const gemini: LocalAgentSpec<GeminiOptions> = {
   },
   signIn: GEMINI_SIGN_IN,
   signedIn: { ask: () => geminiCanSignIn(), reason: `Gemini CLI cannot sign in with a personal Google account any more — ${GEMINI_SIGN_IN}` },
+  // Its sessions under ~/.gemini/tmp, so an ended one in a terminal shows its conversation.
+  record: geminiRecord,
   // Gemini CLI answers one prompt headless, so its sign-in can do worker calls too.
   lend: { rank: 40, ask: geminiAsk }
 };

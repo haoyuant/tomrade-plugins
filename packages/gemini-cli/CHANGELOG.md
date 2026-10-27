@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Gemini CLI's ended terminal sessions show their conversation in the Terminal window's archive (what you asked, its answers, its tool calls and what they returned), read from the sessions it saves under `~/.gemini/tmp`, and are named by Gemini's own summary. Only sessions whose id Tomrade knows: those that carry on a conversation the ticket had with Gemini CLI in Tomrade. Needs Tomrade with plugin SDK 0.2.29 (Tomrade 0.21).
+
 ## 0.1.2
 
 - Set up installs Gemini CLI in one click: Tomrade runs the npm install itself (the system's npm, or its own when there is none), then opens a terminal for the sign-in and watches it. Needs Tomrade with plugin SDK 0.2.26.

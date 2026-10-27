@@ -4,6 +4,7 @@ import { z } from "zod";
 import { PERMISSION_CHOICES, type LocalAgentSpec } from "@tomradex/plugin-sdk";
 import { opencodeAsk } from "./lend.js";
 import { opencodeMcpLink } from "./link.js";
+import { opencodeRecord } from "./record.js";
 
 export const OpencodeOptions = z.object({
   command: z.string().default("opencode"),
@@ -56,6 +57,8 @@ export const opencode: LocalAgentSpec<OpencodeOptions> = {
     reason: ""
   },
   mcpLink: opencodeMcpLink,
+  // Its sessions in its own database, so an ended one in a terminal shows its conversation.
+  record: opencodeRecord,
   // After Hermes: OpenCode starts its whole server for every call.
   lend: { rank: 70, ask: opencodeAsk }
 };

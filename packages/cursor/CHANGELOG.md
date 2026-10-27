@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Cursor's ended terminal sessions show their conversation in the Terminal window's archive (what you asked, its answers and its tool calls; Cursor's transcript keeps no tool output), read from the transcripts `cursor-agent` keeps under `~/.cursor/projects`. Needs Tomrade with plugin SDK 0.2.29 (Tomrade 0.21).
+
 ## 0.2.0
 
 - Cursor runs inside Tomrade over ACP: conversations and tickets go to `cursor-agent acp`, which advertises HTTP MCP, with Tomrade's tools handed to it; Full access, Ask permissions and Read only are Cursor's own. The ticket in a terminal is still there.
