@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Gemini CLI's ended terminal sessions show their conversation in the Terminal window's archive (what you asked, its answers, its tool calls and what they returned), read from the sessions it saves under `~/.gemini/tmp`, and are named by Gemini's own summary. Only sessions whose id Tomrade knows: those that carry on a conversation the ticket had with Gemini CLI in Tomrade. Needs Tomrade with plugin SDK 0.2.29 (Tomrade 0.21).
+- A session waiting on Gemini CLI's permission prompt in a terminal can be answered from Tomrade: Allow presses Enter on the "Allow once" the prompt opens on, Deny presses Esc ("No, suggest changes"). Shown by Tomrade with plugin SDK 0.2.30, and only while the pane shows a prompt Tomrade recognises (commands, MCP tools and web fetches; a file edit's "Apply this change?" is still answered in the terminal); an older Tomrade ignores it.
 
 ## 0.1.2
 

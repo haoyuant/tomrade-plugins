@@ -29,6 +29,10 @@ it("registers Gemini CLI as an in-app agent that also takes a ticket in a termin
   expect(gemini.signIn).toBe(GEMINI_SIGN_IN);
 });
 
+it("answers its permission prompt in a terminal with Enter for the Allow once it opens on, Esc for no", () => {
+  expect(gemini.approval).toEqual({ allow: ["enter"], deny: ["esc"] });
+});
+
 it("starts Gemini CLI's ACP server asking before it acts, in a folder it trusts, and names its calls from their ids", () => {
   const acp = gemini.acp!;
   expect(acp.args({ command: "gemini" })).toEqual(["--acp", "--approval-mode", "default"]);

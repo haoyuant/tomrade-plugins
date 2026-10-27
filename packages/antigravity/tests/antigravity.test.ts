@@ -49,6 +49,10 @@ it("starts `agy_acp_server.par` with no arguments, keeps a ticket in the termina
   expect(agy.probe).toBeUndefined();  expect(agy.signedIn).toBeUndefined();
 });
 
+it("answers its permission prompt in a terminal with Enter for the yes it opens on, Esc for no", () => {
+  expect(agy.approval).toEqual({ allow: ["enter"], deny: ["esc"] });
+});
+
 describe("installing it", () => {
   const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
   const arch = Object.getOwnPropertyDescriptor(process, "arch")!;

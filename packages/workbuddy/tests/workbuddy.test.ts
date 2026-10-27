@@ -106,6 +106,10 @@ it("runs `codebuddy --acp`, bypassing its prompts only for a full-access turn, a
   expect(catalog.models).toEqual([{ value: "hy3" }, { value: "gpt-5.5" }]);
 });
 
+it("answers its permission prompt in a terminal with Enter for the yes it opens on, Esc for no", () => {
+  expect(workbuddy.approval).toEqual({ allow: ["enter"], deny: ["esc"] });
+});
+
 it("tells the troubleshooter which edition it is, and where its newest logs are", () => {
   const configDir = fs.mkdtempSync(path.join(os.tmpdir(), "codebuddy-facts-"));
   process.env.CODEBUDDY_CONFIG_DIR = configDir;
