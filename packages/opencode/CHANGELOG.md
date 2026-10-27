@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- A session waiting on OpenCode's permission prompt in a terminal can be refused from Tomrade: Deny presses Esc ("Reject"). OpenCode marks its choice only by colour, so Tomrade cannot tell what Enter would pick and offers no Allow. Shown by Tomrade with plugin SDK 0.2.30, only while the pane shows the prompt (recognised from the Tomrade release after 0.22.0); an older Tomrade ignores it.
 - OpenCode's ended terminal sessions show their conversation in the Terminal window's archive (what you asked, its answers, its tool calls and their output), read from OpenCode's own SQLite database and named by its own title. Needs Tomrade with plugin SDK 0.2.29 (Tomrade 0.21).
 
 ## 0.1.2

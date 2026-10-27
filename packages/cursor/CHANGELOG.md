@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- A session waiting on Cursor's permission prompt in a terminal can be answered from Tomrade: Allow presses Enter on the "Run (once)" the prompt opens on, Deny presses Esc ("Skip & tell the agent what to do instead"). Shown by Tomrade with plugin SDK 0.2.30, only while the pane shows a prompt Tomrade recognises (Cursor's is from the Tomrade release after 0.22.0); an older Tomrade ignores it.
 - Cursor's ended terminal sessions show their conversation in the Terminal window's archive (what you asked, its answers and its tool calls; Cursor's transcript keeps no tool output), read from the transcripts `cursor-agent` keeps under `~/.cursor/projects`. Needs Tomrade with plugin SDK 0.2.29 (Tomrade 0.21).
 
 ## 0.2.0

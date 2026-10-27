@@ -60,5 +60,7 @@ export const opencode: LocalAgentSpec<OpencodeOptions> = {
   // Its sessions in its own database, so an ended one in a terminal shows its conversation.
   record: opencodeRecord,
   // After Hermes: OpenCode starts its whole server for every call.
-  lend: { rank: 70, ask: opencodeAsk }
+  lend: { rank: 70, ask: opencodeAsk },
+  // Its "Permission required" row opens on "Allow once" (Enter takes it); Esc rejects. Tomrade cannot see the cursor on that row, so it only offers Deny
+  approval: { allow: ["enter"], deny: ["esc"] }
 };
