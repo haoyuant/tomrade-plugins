@@ -30,6 +30,10 @@ it("registers OpenCode as a local agent", async () => {
   expect(registered).toEqual([opencode]);
 });
 
+it("answers its permission prompt in a terminal with Enter for the Allow once it opens on, Esc to reject", () => {
+  expect(opencode.approval).toEqual({ allow: ["enter"], deny: ["esc"] });
+});
+
 it("starts `opencode acp`, keeps read-only turns in its plan agent, and can also take a ticket in a terminal", () => {
   const acp = opencode.acp!;
   expect(acp.args({ command: "opencode" })).toEqual(["acp"]);

@@ -50,5 +50,7 @@ export const cursor: LocalAgentSpec<CursorOptions> = {
   // Its transcripts under ~/.cursor/projects, so an ended session in a terminal shows its conversation.
   record: cursorRecord,
   // Last: every call carries Cursor's own tool definitions (about 15k tokens) and counts against its plan.
-  lend: { rank: 80, ask: cursorAsk }
+  lend: { rank: 80, ask: cursorAsk },
+  // Its tool prompt ("Run this command?") opens on "→ Run (once) (y)" (Enter takes it); Esc is its "Skip & tell the agent what to do instead (esc or n)"
+  approval: { allow: ["enter"], deny: ["esc"] }
 };

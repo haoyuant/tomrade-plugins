@@ -30,6 +30,10 @@ it("registers Cursor as a local agent", async () => {
   expect(registered).toEqual([cursor]);
 });
 
+it("answers its permission prompt in a terminal with Enter for the Run (once) it opens on, Esc to skip", () => {
+  expect(cursor.approval).toEqual({ allow: ["enter"], deny: ["esc"] });
+});
+
 describe("Cursor as an engine", () => {
   it("runs over `cursor-agent acp` with a typed-in Model, its installer named by address", () => {
     expect(cursor).toMatchObject({ id: "cursor", title: "Cursor", cli: { name: "cursor-agent", desktopApp: { title: "Cursor", mac: ["Cursor"], windows: ["Programs\\cursor"] } }, lend: { rank: 80 } });
