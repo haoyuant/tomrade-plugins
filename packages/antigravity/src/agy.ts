@@ -2,6 +2,7 @@ import { z } from "zod";
 import { PERMISSION_CHOICES, type LocalAgentInstaller, type LocalAgentSpec } from "@tomradex/plugin-sdk";
 import { agyAsk } from "./lend.js";
 import { agyMcpLink } from "./link.js";
+import { agyRecord } from "./record.js";
 
 export const AgyOptions = z.object({
   /** The ACP server Google ships, as the ACP registry names it: `agy_acp_server.par` (`agy_acp_server.exe` on Windows). */
@@ -79,6 +80,8 @@ export const agy: LocalAgentSpec<AgyOptions> = {
     terminal: { via: "link" }
   },
   mcpLink: agyMcpLink,
+  // Its transcripts under ~/.gemini/antigravity-cli/brain, so an ended session in a terminal shows its conversation.
+  record: agyRecord,
   // Every call carries agy's own tool definitions (about 12k tokens).
   lend: { rank: 75, ask: agyAsk }
 };

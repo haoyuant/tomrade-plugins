@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- OpenCode's ended terminal sessions show their conversation in the Terminal window's archive (what you asked, its answers, its tool calls and their output), read from OpenCode's own SQLite database and named by its own title. Needs Tomrade with plugin SDK 0.2.29 (Tomrade 0.21).
+
 ## 0.1.2
 
 - Set up installs OpenCode in one click on Windows too: the npm install is one Tomrade runs itself (the system's npm, or its own when there is none), after OpenCode's own installer elsewhere. Needs Tomrade with plugin SDK 0.2.26.

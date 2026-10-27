@@ -2,6 +2,7 @@ import { z } from "zod";
 import { PERMISSION_CHOICES, type LocalAgentSpec } from "@tomradex/plugin-sdk";
 import { cursorAsk } from "./lend.js";
 import { cursorMcpLink } from "./link.js";
+import { cursorRecord } from "./record.js";
 
 export const CursorOptions = z.object({
   command: z.string().default("cursor-agent"),
@@ -46,6 +47,8 @@ export const cursor: LocalAgentSpec<CursorOptions> = {
   picks: [{ key: "model", title: "Model", choices: [], freeText: true }],
   probe: { args: ["status"], says: (output) => cursorSignedIn(output), reason: "Cursor's CLI is not signed in — run `cursor-agent login`" },
   mcpLink: cursorMcpLink,
+  // Its transcripts under ~/.cursor/projects, so an ended session in a terminal shows its conversation.
+  record: cursorRecord,
   // Last: every call carries Cursor's own tool definitions (about 15k tokens) and counts against its plan.
   lend: { rank: 80, ask: cursorAsk }
 };

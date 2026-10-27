@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- DeepSeek Harness's ended terminal sessions show their conversation in the Terminal window's archive (what you asked, its answers, its tool calls and their results), read from the compressed session logs dsh keeps under `~/.dsh/sessions` and named by dsh's own title. Needs Tomrade with plugin SDK 0.2.29 (Tomrade 0.21).
+
 ## 0.1.2
 
 - Set up installs the DeepSeek Harness CLI in one click: Tomrade runs the npm install itself (the system's npm, or its own when there is none), then opens a terminal for `dsh web` and watches it. Needs Tomrade with plugin SDK 0.2.26.

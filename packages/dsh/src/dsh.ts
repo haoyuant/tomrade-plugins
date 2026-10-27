@@ -2,6 +2,7 @@ import path from "node:path";
 import { z } from "zod";
 import { PERMISSION_CHOICES, type BundledCli, type LocalAgentSpec, type LocalCliHost } from "@tomradex/plugin-sdk";
 import { dshAsk } from "./lend.js";
+import { dshRecord } from "./record.js";
 
 export const DshOptions = z.object({
   command: z.string().default("dsh"),
@@ -55,5 +56,7 @@ export const dsh: LocalAgentSpec<DshOptions> = {
   },
   // A saved key lives in $DSH_HOME/.credentials.yaml, outside any one profile.
   signIn: "sign in or add a DeepSeek API key under Settings → Models in the DeepSeek Harness app (or `dsh web`), or set DEEPSEEK_API_KEY",
+  // Its session logs under ~/.dsh/sessions, so an ended session in a terminal shows its conversation.
+  record: dshRecord,
   lend: { rank: 45, ask: dshAsk }
 };

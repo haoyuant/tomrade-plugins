@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- agy's ended terminal sessions show their conversation in the Terminal window's archive (what you asked, its answers, its tool calls and their results), read from the transcript agy keeps for each conversation under `~/.gemini/antigravity-cli/brain`. Only sessions whose id Tomrade knows: those that carry on a conversation the ticket had with agy in Tomrade. Needs Tomrade with plugin SDK 0.2.29 (Tomrade 0.21).
+
 ## 0.2.0
 
 - Set up installs Google's ACP server too, `agy_acp_server.par` (`agy_acp_server.exe` on Windows), so a conversation opens in Tomrade after setup with no manual download: Tomrade downloads the zip from Google's ACP releases and unpacks it, then runs Antigravity's own installer for `agy`. Needs Tomrade with plugin SDK 0.2.27, which downloads and unpacks it.

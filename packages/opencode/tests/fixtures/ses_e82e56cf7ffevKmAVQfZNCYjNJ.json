@@ -1,0 +1,94 @@
+{
+ "session": {
+  "id": "ses_e82e56cf7ffevKmAVQfZNCYjNJ",
+  "project_id": "global",
+  "parent_id": null,
+  "slug": "lucky-pixel",
+  "directory": "/home/me/demo",
+  "title": "List current folder files and say hello",
+  "version": "1.19.4",
+  "time_created": 1793100256008,
+  "time_updated": 1793100261504
+ },
+ "messages": [
+  {
+   "id": "msg_17d1a931b0014pL4KhUXQSJM1y",
+   "session_id": "ses_e82e56cf7ffevKmAVQfZNCYjNJ",
+   "time_created": 1793100256028,
+   "time_updated": 1793100261511,
+   "data": "{\"role\":\"user\",\"time\":{\"created\":1793100256028},\"agent\":\"build\",\"model\":{\"providerID\":\"deepseek\",\"modelID\":\"deepseek-flash\"},\"summary\":{\"diffs\":[]}}"
+  },
+  {
+   "id": "msg_17d1a9427001wcTnGM7nMpXBn6",
+   "session_id": "ses_e82e56cf7ffevKmAVQfZNCYjNJ",
+   "time_created": 1793100256295,
+   "time_updated": 1793100260548,
+   "data": "{\"parentID\":\"msg_17d1a931b0014pL4KhUXQSJM1y\",\"role\":\"assistant\",\"mode\":\"build\",\"agent\":\"build\",\"path\":{\"cwd\":\"/home/me/demo\",\"root\":\"/\"},\"cost\":0.00440595,\"tokens\":{\"total\":29256,\"input\":29217,\"output\":39,\"reasoning\":0,\"cache\":{\"write\":0,\"read\":0}},\"modelID\":\"deepseek-flash\",\"providerID\":\"deepseek\",\"time\":{\"created\":1793100256295,\"completed\":1793100260548},\"finish\":\"tool-calls\"}"
+  },
+  {
+   "id": "msg_17d1aa4c4001JS5CpRWYNGpwv8",
+   "session_id": "ses_e82e56cf7ffevKmAVQfZNCYjNJ",
+   "time_created": 1793100260548,
+   "time_updated": 1793100261496,
+   "data": "{\"parentID\":\"msg_17d1a931b0014pL4KhUXQSJM1y\",\"role\":\"assistant\",\"mode\":\"build\",\"agent\":\"build\",\"path\":{\"cwd\":\"/home/me/demo\",\"root\":\"/\"},\"cost\":0.000121452,\"tokens\":{\"total\":29362,\"input\":162,\"output\":16,\"reasoning\":0,\"cache\":{\"write\":0,\"read\":29184}},\"modelID\":\"deepseek-flash\",\"providerID\":\"deepseek\",\"time\":{\"created\":1793100260548,\"completed\":1793100261495},\"finish\":\"stop\"}"
+  }
+ ],
+ "parts": [
+  {
+   "id": "prt_17d1a931f001HPGVYNURVgeVZo",
+   "message_id": "msg_17d1a931b0014pL4KhUXQSJM1y",
+   "session_id": "ses_e82e56cf7ffevKmAVQfZNCYjNJ",
+   "time_created": 1793100256139,
+   "time_updated": 1793100256140,
+   "data": "{\"type\":\"text\",\"text\":\"\\\"List the files in the current folder with your file listing tool (do not change anything), then reply with the word hello and the file names you saw.\\\"\"}"
+  },
+  {
+   "id": "prt_17d1aa017001FEcbegsmmFp6oL",
+   "message_id": "msg_17d1a9427001wcTnGM7nMpXBn6",
+   "session_id": "ses_e82e56cf7ffevKmAVQfZNCYjNJ",
+   "time_created": 1793100259351,
+   "time_updated": 1793100259351,
+   "data": "{\"type\":\"step-start\"}"
+  },
+  {
+   "id": "prt_17d1aa482001uZ40Oz3m453BCR",
+   "message_id": "msg_17d1a9427001wcTnGM7nMpXBn6",
+   "session_id": "ses_e82e56cf7ffevKmAVQfZNCYjNJ",
+   "time_created": 1793100260483,
+   "time_updated": 1793100260545,
+   "data": "{\"type\":\"tool\",\"tool\":\"bash\",\"callID\":\"call_00_ET_zXT7E3fP0kdLRdo31Eu15955\",\"state\":{\"status\":\"completed\",\"input\":{\"command\":\"ls -la\"},\"output\":\"total 8\\ndrwxr-xr-x@ 3 me  wheel   96 27 Oct 19:20 .\\ndrwxr-xr-x@ 9 me  wheel  288 27 Oct 19:20 ..\\n-rw-r--r--@ 1 me  wheel   11 27 Oct 19:20 note.txt\\n\",\"metadata\":{\"output\":\"total 8\\ndrwxr-xr-x@ 3 me  wheel   96 27 Oct 19:20 .\\ndrwxr-xr-x@ 9 me  wheel  288 27 Oct 19:20 ..\\n-rw-r--r--@ 1 me  wheel   11 27 Oct 19:20 note.txt\\n\",\"exit\":0,\"truncated\":false},\"title\":\"ls -la\",\"time\":{\"start\":1793100260512,\"end\":1793100260545}}}"
+  },
+  {
+   "id": "prt_17d1aa4c2001CFt37xbu35la7t",
+   "message_id": "msg_17d1a9427001wcTnGM7nMpXBn6",
+   "session_id": "ses_e82e56cf7ffevKmAVQfZNCYjNJ",
+   "time_created": 1793100260546,
+   "time_updated": 1793100260546,
+   "data": "{\"reason\":\"tool-calls\",\"type\":\"step-finish\",\"tokens\":{\"total\":29256,\"input\":29217,\"output\":39,\"reasoning\":0,\"cache\":{\"write\":0,\"read\":0}},\"cost\":0.00440595}"
+  },
+  {
+   "id": "prt_17d1aa612001VY0t8YsMJuv1Zp",
+   "message_id": "msg_17d1aa4c4001JS5CpRWYNGpwv8",
+   "session_id": "ses_e82e56cf7ffevKmAVQfZNCYjNJ",
+   "time_created": 1793100260882,
+   "time_updated": 1793100260882,
+   "data": "{\"type\":\"step-start\"}"
+  },
+  {
+   "id": "prt_17d1aa7d3001gZMedXb15bDVU0",
+   "message_id": "msg_17d1aa4c4001JS5CpRWYNGpwv8",
+   "session_id": "ses_e82e56cf7ffevKmAVQfZNCYjNJ",
+   "time_created": 1793100261331,
+   "time_updated": 1793100261494,
+   "data": "{\"type\":\"text\",\"text\":\"hello — note.txt (only file; also `.` and `..`)\",\"time\":{\"start\":1793100261331,\"end\":1793100261493}}"
+  },
+  {
+   "id": "prt_17d1aa876001hs1pX4R2Mdnbiy",
+   "message_id": "msg_17d1aa4c4001JS5CpRWYNGpwv8",
+   "session_id": "ses_e82e56cf7ffevKmAVQfZNCYjNJ",
+   "time_created": 1793100261494,
+   "time_updated": 1793100261494,
+   "data": "{\"reason\":\"stop\",\"type\":\"step-finish\",\"tokens\":{\"total\":29362,\"input\":162,\"output\":16,\"reasoning\":0,\"cache\":{\"write\":0,\"read\":29184}},\"cost\":0.000121452}"
+  }
+ ]
+}
