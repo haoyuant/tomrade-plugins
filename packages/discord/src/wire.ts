@@ -123,6 +123,7 @@ export function messageOf(content: ImContent): { content: string; embeds: unknow
   const embeds: { title?: string; description?: string; fields?: { name: string; value: string; inline: boolean }[] }[] = [];
   const rows: unknown[][] = [];
   const buttons: unknown[] = [];
+  const inputs: unknown[] = [];
   const linkLines: string[] = [];
   const row = (items: unknown[]) => { if (rows.length < LIMIT.rows) rows.push(items); };
   for (const el of content.elements ?? []) addElement(el);
@@ -146,11 +147,13 @@ export function messageOf(content: ImContent): { content: string; embeds: unknow
           options: el.options.slice(0, LIMIT.options).map(o => ({ label: clip(o.label, LIMIT.optionText), value: clip(o.value, LIMIT.optionText) })) }]);
         return;
       case "input":
-        buttons.push({ type: 2, style: 1, label: clip(el.label, LIMIT.label), custom_id: controlId("i", el.token) });
+        inputs.push({ type: 2, style: STYLE.default, label: clip(el.label, LIMIT.label), custom_id: controlId("i", el.token) });
         return;
     }
   }
   for (const a of content.actions ?? []) buttons.push({ type: 2, style: STYLE[a.style ?? "default"], label: clip(a.label, LIMIT.label), custom_id: controlId("b", a.token) });
+  // The free-text answer is the last choice and not the recommended one: only a primary action is blue.
+  buttons.push(...inputs);
   // Buttons come first so a question's answers sit right under it; a select gets a row of its own.
   const selects = rows.splice(0);
   for (let i = 0; i < buttons.length; i += LIMIT.perRow) row(buttons.slice(i, i + LIMIT.perRow));

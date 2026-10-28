@@ -64,9 +64,9 @@ describe("Discord messages out", () => {
     expect(out.components).toEqual([
       { type: 1, components: [
         { type: 2, style: 5, label: "Docs", url: "https://example.com" },
-        { type: 2, style: 1, label: "Your answer", custom_id: "i:t4" },
         { type: 2, style: 1, label: "Apply", custom_id: "b:t1" },
-        { type: 2, style: 4, label: "Cancel", custom_id: "b:t2" }
+        { type: 2, style: 4, label: "Cancel", custom_id: "b:t2" },
+        { type: 2, style: 2, label: "Your answer", custom_id: "i:t4" }
       ] },
       { type: 1, components: [{ type: 3, custom_id: "m:t3", min_values: 1, max_values: 2, options: [{ label: "web", value: "web" }, { label: "cli", value: "cli" }] }] }
     ]);
