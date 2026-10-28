@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.1
+
+- A question card's free-text answer button is the plain grey one and comes after the options, so the only blue button is the recommended option (Tomrade 0.23 marks it).
+- The server setup steps say how to mention the bot: type @ and pick Tomrade from the list; a pasted "@Tomrade" is plain text.
+
 ## 0.6.0
 
 - Settings → IM shows a server channel as `#name` and a direct chat by the person in it, instead of its id (SDK 0.2.24 `describe`); `/tomrade setup` names the channels it allows.
