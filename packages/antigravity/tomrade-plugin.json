@@ -1,7 +1,7 @@
 {
   "id": "tomrade/antigravity",
   "namespace": "agy",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "title": "Antigravity CLI",
   "description": "Google's Antigravity CLI (agy) as a coding agent in Tomrade: conversations and tickets run on Google's ACP server for Antigravity with Tomrade's tools, a ticket can also go to agy in a terminal, its own sessions reach Tomrade once connected, and its sign-in answers Tomrade's background calls.",
   "license": "Apache-2.0",
