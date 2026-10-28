@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 - Tomrade now knows when `agy` is not signed in before a turn starts (it reads `agy models`), so a chat in Tomrade, or an IM message, is told at once to sign in by running `agy` rather than waiting for the first turn to fail.
 - A conversation no longer fails as "not signed in" while `agy` is signed in: Google's ACP server signs in apart from `agy`, by the `auth.type` in its own `~/.gemini/antigravity-acp/settings.json`. When that names none, Google sign-in is set (the Gemini API key when `GEMINI_API_KEY` is set) and the first conversation opens it in the browser; a type you chose and your other settings stay. A real sign-out now says it is the ACP server's.
