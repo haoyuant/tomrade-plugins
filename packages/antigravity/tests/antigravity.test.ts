@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NotSignedIn, type LocalAgentSpec, type PluginContext } from "@tomradex/plugin-sdk";
 import plugin from "../src/index.js";
 import { AgyOptions, agy } from "../src/agy.js";
+import { acpSettingsFile, chooseAcpSignIn, localBypass } from "../src/acp.js";
 import { agyAsk, agyDir, agyModel, agyWorkerDir } from "../src/lend.js";
 import { agyConfiguredUrl, agyMcpFile, agyMcpLink } from "../src/link.js";
 import { MCP, fakeCli, io } from "./cli.js";
@@ -51,6 +52,59 @@ it("starts `agy_acp_server.par` with no arguments, keeps a ticket in the termina
 
 it("answers its permission prompt in a terminal with Enter for the yes it opens on, Esc for no", () => {
   expect(agy.approval).toEqual({ allow: ["enter"], deny: ["esc"] });
+});
+
+describe("starting its ACP server", () => {
+  const settings = () => path.join(home, ".gemini", "antigravity-acp", "settings.json");
+  const read = () => JSON.parse(fs.readFileSync(settings(), "utf8"));
+  const write = (text: string) => (fs.mkdirSync(path.dirname(settings()), { recursive: true }), fs.writeFileSync(settings(), text));
+  beforeEach(() => {
+    vi.stubEnv("GEMINI_HOME", "");
+    vi.stubEnv("GEMINI_API_KEY", "");
+    vi.stubEnv("NO_PROXY", "");
+    vi.stubEnv("no_proxy", "");
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("signs the server in with Google when its own settings name no way, since it never reads agy's sign-in", () => {
+    expect(agy.acp!.env!(AgyOptions.parse({}))).toEqual({ NO_PROXY: "127.0.0.1,localhost", no_proxy: "127.0.0.1,localhost" });
+    expect(read()).toEqual({ auth: { type: "oauth-personal" } });
+  });
+
+  it("takes the Gemini API key instead when one is in the environment, and keeps the person's other settings", () => {
+    vi.stubEnv("GEMINI_API_KEY", "key");
+    write(JSON.stringify({ auth: { other: 1 }, gcp: { project: "p" } }));
+    chooseAcpSignIn();
+    expect(read()).toEqual({ auth: { other: 1, type: "gemini-api-key" }, gcp: { project: "p" } });
+  });
+
+  it("leaves a way the person chose, and a file it cannot read, as they are", () => {
+    write(JSON.stringify({ auth: { type: "agent-platform" } }));
+    chooseAcpSignIn();
+    expect(read()).toEqual({ auth: { type: "agent-platform" } });
+    for (const text of ["{ not json", "[]", JSON.stringify({ auth: "oauth-personal" })]) {
+      write(text);
+      chooseAcpSignIn();
+      expect(fs.readFileSync(settings(), "utf8")).toBe(text);
+    }
+  });
+
+  it("follows GEMINI_HOME, where the server keeps its settings too", () => {
+    const gemini = path.join(home, "elsewhere");
+    expect(acpSettingsFile({ GEMINI_HOME: gemini }, home)).toBe(path.join(gemini, "antigravity-acp", "settings.json"));
+    expect(acpSettingsFile({}, home)).toBe(settings());
+  });
+
+  it("keeps its websocket to its own harness off a SOCKS system proxy, adding to the hosts already let through", () => {
+    expect(localBypass({ NO_PROXY: "corp.example, localhost", no_proxy: "10.0.0.0/8" })).toEqual({
+      NO_PROXY: "corp.example,localhost,10.0.0.0/8,127.0.0.1",
+      no_proxy: "corp.example,localhost,10.0.0.0/8,127.0.0.1"
+    });
+  });
+
+  it("says a sign-out is the ACP server's, not agy's", () => {
+    expect(agy.signIn).toContain("~/.gemini/antigravity-acp/settings.json");
+  });
 });
 
 describe("installing it", () => {

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PERMISSION_CHOICES, type LocalAgentInstaller, type LocalAgentSpec } from "@tomradex/plugin-sdk";
+import { chooseAcpSignIn, localBypass } from "./acp.js";
 import { agyAsk } from "./lend.js";
 import { agyMcpLink } from "./link.js";
 import { agyRecord } from "./record.js";
@@ -59,6 +60,8 @@ export const agy: LocalAgentSpec<AgyOptions> = {
   cli: { name: "agy", desktopApp: { title: "Antigravity", mac: ["Antigravity"], windows: ["Programs\\Antigravity"] } },
   // A conversation starts the ACP server, not `agy`: that is the file "not found" is about, and `{install}` is its zip.
   install: `download ${SERVER} from Google's ACP releases ({install})`,
+  // A conversation's "Authentication required" is the ACP server's, which never reads agy's sign-in.
+  signIn: "Antigravity's ACP server signs in apart from agy: set `auth.type` in ~/.gemini/antigravity-acp/settings.json (oauth-personal signs in with Google in your browser)",
   setup: {
     // The server first, since it is what opens a conversation in the app; `agy` installs after it, for the terminal hand-off and `agy mcp add`.
     install: [...[acpArchive(process.platform, process.arch)].filter((step): step is LocalAgentInstaller => !!step), CLI_INSTALLER],
@@ -74,6 +77,11 @@ export const agy: LocalAgentSpec<AgyOptions> = {
     permissionModes: { default: "full-access", choices: [PERMISSION_CHOICES["full-access"], PERMISSION_CHOICES.ask] },
     // The ACP server Google ships from https://dl.google.com/agy-extensions/releases/ is started as it is, with no arguments (`--uid=` belongs to the registry's own sandbox).
     args: () => [],
+    // Read before every start, so the server finds a sign-in method of its own.
+    env: () => {
+      chooseAcpSignIn();
+      return localBypass();
+    },
     reopen: "load",
     efforts: ["low", "medium", "high", "xhigh", "max"],
     // A ticket can also go to `agy` in a terminal, reaching Tomrade through `agy mcp add`.

@@ -19,7 +19,7 @@
     "fs": "any",
     "exec": true,
     "why": {
-      "fs": "Reads which address the `tomrade` server has in ~/.gemini/config/mcp_config.json; after a background call it deletes that call's conversation from ~/.gemini/antigravity-cli, and runs the call from an empty temporary folder. It reads the transcripts agy keeps under ~/.gemini/antigravity-cli/brain to show an ended session's conversation.",
+      "fs": "Reads which address the `tomrade` server has in ~/.gemini/config/mcp_config.json; after a background call it deletes that call's conversation from ~/.gemini/antigravity-cli, and runs the call from an empty temporary folder. It reads the transcripts agy keeps under ~/.gemini/antigravity-cli/brain to show an ended session's conversation. When the ACP server's own ~/.gemini/antigravity-acp/settings.json names no sign-in method, it adds one (Google sign-in, or the Gemini API key when GEMINI_API_KEY is set), keeping the rest.",
       "exec": "Runs your own `agy` command: in a terminal for a ticket, `agy mcp add` and `agy mcp remove` to connect it, and agy in print mode for background calls; and Google's `agy_acp_server.par` (or `agy_acp_server.exe`) for conversations and tickets in Tomrade."
     }
   },
