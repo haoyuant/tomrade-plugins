@@ -36,7 +36,8 @@ export default async function scenario(t: {
     return false;
   };
   const posted = () => [...discord.messages.values()].filter(m => m.channel === "20").map(m => m.body);
-  const said = (text: string) => posted().some(b => b.content === text);
+  // A line of a reply: /status leads with the project, so the whole message is more than its answer.
+  const said = (text: string) => posted().some(b => String(b.content).split("\n").includes(text));
 
   await until("connects", () => t.im.connections()[0]?.state === "connected");
   t.check("shows the bot it signed in as", t.im.connections()[0]?.identity?.name === "tomrade-bot");
