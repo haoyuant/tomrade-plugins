@@ -6,7 +6,7 @@ import { NotSignedIn, type LocalAgentSpec, type PluginContext } from "@tomradex/
 import plugin from "../src/index.js";
 import { AgyOptions, agy } from "../src/agy.js";
 import { acpSettingsFile, chooseAcpSignIn, localBypass } from "../src/acp.js";
-import { agyAsk, agyDir, agyModel, agyWorkerDir } from "../src/lend.js";
+import { agyAsk, agyDir, agySignedIn, agyModel, agyWorkerDir } from "../src/lend.js";
 import { agyConfiguredUrl, agyMcpFile, agyMcpLink } from "../src/link.js";
 import { MCP, fakeCli, io } from "./cli.js";
 
@@ -47,7 +47,15 @@ it("starts `agy_acp_server.par` with no arguments, keeps a ticket in the termina
   // Non-dangerous commands run without asking, so it cannot promise a read-only turn.
   expect(acp.permissionModes.choices.map((choice) => choice.value)).toEqual(["full-access", "ask"]);
   expect(acp).toMatchObject({ reopen: "load", efforts: ["low", "medium", "high", "xhigh", "max"], terminal: { via: "link" } });
-  expect(agy.probe).toBeUndefined();  expect(agy.signedIn).toBeUndefined();
+  expect(agy.signedIn).toBeUndefined();
+});
+
+it("reads whether agy is signed in from `agy models`, so availability says sign-in at once", () => {
+  expect(agy.probe).toMatchObject({ args: ["models"], reason: "Antigravity CLI is not signed in — run `agy` and sign in" });
+  expect(agy.probe!.says("Fetching available models...\nError: Please sign in to view available models. Launch the CLI without arguments to sign in.", {} as never)).toBe(false);
+  expect(agySignedIn("Error: authentication required")).toBe(false);
+  expect(agySignedIn("Fetching available models...\ngemini-3.8-flash-high\tGemini 3.8 Flash (High)")).toBeNull();
+  expect(agySignedIn("")).toBeNull();
 });
 
 it("answers its permission prompt in a terminal with Enter for the yes it opens on, Esc for no", () => {

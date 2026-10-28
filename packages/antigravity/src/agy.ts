@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { PERMISSION_CHOICES, type LocalAgentInstaller, type LocalAgentSpec } from "@tomradex/plugin-sdk";
 import { chooseAcpSignIn, localBypass } from "./acp.js";
-import { agyAsk } from "./lend.js";
+import { agyAsk, agySignedIn } from "./lend.js";
 import { agyMcpLink } from "./link.js";
 import { agyRecord } from "./record.js";
 
@@ -87,6 +87,8 @@ export const agy: LocalAgentSpec<AgyOptions> = {
     // A ticket can also go to `agy` in a terminal, reaching Tomrade through `agy mcp add`.
     terminal: { via: "link" }
   },
+  // Without this, a signed-out agy reads as available and a chat waits a minute for the first turn to fail.
+  probe: { args: ["models"], says: (output) => agySignedIn(output), reason: "Antigravity CLI is not signed in — run `agy` and sign in" },
   mcpLink: agyMcpLink,
   // Its transcripts under ~/.gemini/antigravity-cli/brain, so an ended session in a terminal shows its conversation.
   record: agyRecord,
