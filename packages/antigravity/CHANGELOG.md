@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Tomrade now knows when `agy` is not signed in before a turn starts (it reads `agy models`), so a chat in Tomrade, or an IM message, is told at once to sign in by running `agy` rather than waiting for the first turn to fail.
 - A conversation no longer fails as "not signed in" while `agy` is signed in: Google's ACP server signs in apart from `agy`, by the `auth.type` in its own `~/.gemini/antigravity-acp/settings.json`. When that names none, Google sign-in is set (the Gemini API key when `GEMINI_API_KEY` is set) and the first conversation opens it in the browser; a type you chose and your other settings stay. A real sign-out now says it is the ACP server's.
 - Behind a macOS SOCKS system proxy the ACP server could not reach its own harness (`python-socks is required to use a SOCKS proxy`); it now starts with 127.0.0.1 and localhost added to `NO_PROXY`.
 - agy's ended terminal sessions show their conversation in the Terminal window's archive (what you asked, its answers, its tool calls and their results), read from the transcript agy keeps for each conversation under `~/.gemini/antigravity-cli/brain`. Only sessions whose id Tomrade knows: those that carry on a conversation the ticket had with agy in Tomrade. Needs Tomrade with plugin SDK 0.2.29 (Tomrade 0.21).

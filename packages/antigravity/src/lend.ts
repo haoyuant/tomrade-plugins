@@ -5,6 +5,11 @@ import { NotSignedIn, type LentAnswer, type LentRequest, type LocalAgentIo, type
 
 const SIGNED_OUT = /authentication required|not authenticated/i;
 
+/** What `agy models` says: it fails with "Please sign in" while signed out; any other output, or none, is no clear answer. */
+export function agySignedIn(output: string): boolean | null {
+  return SIGNED_OUT.test(output) || /please sign in/i.test(output) ? false : null;
+}
+
 interface StreamLine {
   event?: string;
   conversation_id?: string;
